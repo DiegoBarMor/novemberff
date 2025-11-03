@@ -44,29 +44,32 @@ class ForceField:
                 name       = name,
             )
         ff_data["types"] = ffatomtypes
+        nov.FFBond.register_atomtypes(ffatomtypes)
+        nov.FFAngle.register_atomtypes(ffatomtypes)
+        nov.FFDihedral.register_atomtypes(ffatomtypes)
+
 
         for residue_node in node_resids.children:
             resname = residue_node.get_attr("name")
-            atom_nodes = list(filter(lambda c: c.tag_name == "Atom", residue_node.children))
-            atoms = [
-                nov.FFAtom(
+            atom_nodes = filter(lambda c: c.tag_name == "Atom", residue_node.children)
+            atoms = {
+                node.get_attr("name") : nov.FFAtom(
                     name      = node.get_attr("name"),
                     charge    = float(node.get_attr("charge")),
                     atom_type = ffatomtypes[node.get_attr("type")],
                 ) for node in atom_nodes
-            ]
-            atom_names = [node.get_attr("name") for node in atom_nodes]
-            ff_data["residues"][resname] = nov.FFResidue(resname, atoms, atom_names)
+            }
+            ff_data["residues"][resname] = nov.FFResidue(resname, atoms)
 
 
         for child in node_bonds.children:
             t1 = child.get_attr("type1")
             t2 = child.get_attr("type2")
-            ff_data["bonds"][(t1, t2)] = nov.FFBond(
+            types = (t1, t2)
+            ff_data["bonds"][types] = nov.FFBond(
                 k      = float(child.get_attr("k")),
                 length = float(child.get_attr("length")),
-                type1  = ffatomtypes[t1],
-                type2  = ffatomtypes[t2],
+                types  = types,
             )
 
 
@@ -74,12 +77,11 @@ class ForceField:
             t1 = child.get_attr("type1")
             t2 = child.get_attr("type2")
             t3 = child.get_attr("type3")
-            ff_data["angles"][(t1, t2, t3)] = nov.FFAngle(
+            types = (t1, t2, t3)
+            ff_data["angles"][types] = nov.FFAngle(
                 k      = float(child.get_attr("k")),
                 angle  = float(child.get_attr("angle")),
-                type1  = ffatomtypes[t1],
-                type2  = ffatomtypes[t2],
-                type3  = ffatomtypes[t3],
+                types  = types,
             )
 
 
@@ -90,7 +92,8 @@ class ForceField:
             t2 = child.get_attr("type2")
             t3 = child.get_attr("type3")
             t4 = child.get_attr("type4")
-            ff_data["diheds"][(t1, t2, t3, t4)] = nov.FFDihedral(
+            types = (t1, t2, t3, t4)
+            ff_data["diheds"][types] = nov.FFDihedral(
                 isProper = child.tag_name == "Proper",
                 k1 = _safe_float(child.get_attr("k1")),
                 k2 = _safe_float(child.get_attr("k2")),
@@ -104,10 +107,7 @@ class ForceField:
                 phase2 = _safe_float(child.get_attr("phase2")),
                 phase3 = _safe_float(child.get_attr("phase3")),
                 phase4 = _safe_float(child.get_attr("phase4")),
-                type1 = ffatomtypes[t1] if t1 else None,
-                type2 = ffatomtypes[t2] if t2 else None,
-                type3 = ffatomtypes[t3] if t3 else None,
-                type4 = ffatomtypes[t4] if t4 else None,
+                types = types,
             )
 
 
@@ -130,7 +130,7 @@ class ForceField:
         Convert an OpenMM atom to a FF atom.
         """
         ff_residue: nov.FFResidue = self._ffresidues[atom.residue.name]
-        return ff_residue.get_by_name(atom.name)
+        return ff_residue.get_atom_by_name(atom.name)
 
 
     # --------------------------------------------------------------------------

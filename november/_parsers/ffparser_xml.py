@@ -35,8 +35,12 @@ class XMLNode:
                 return child
 
     # --------------------------------------------------------------------------
+    def has_attr(self, key: str) -> bool:
+        return key in self.attributes.keys()
+
+    # --------------------------------------------------------------------------
     def get_attr(self, key: str) -> str | None:
-        if key in self.attributes.keys():
+        if self.has_attr(key):
             return self.attributes[key]
 
 

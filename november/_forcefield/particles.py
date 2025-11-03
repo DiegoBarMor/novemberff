@@ -22,19 +22,14 @@ class FFAtom:
 
 # //////////////////////////////////////////////////////////////////////////////
 class FFResidue:
-    def __init__(self, name: str, atoms: list[FFAtom], atom_names: list[str]):
+    def __init__(self, name: str, atoms: dict[str, FFAtom]):
         self.name = name
-
-        assert len(atoms) == len(atom_names)
-        self._map_atom_names = {name: i for i, name in enumerate(atom_names)}
         self._atoms = atoms
 
 
     # --------------------------------------------------------------------------
-    def get_by_name(self, name: str) -> FFAtom | None:
-        idx = self._map_atom_names.get(name, None)
-        if idx is None: return
-        return self._atoms[idx]
+    def get_atom_by_name(self, name: str) -> FFAtom | None:
+        return self._atoms.get(name)
 
 
 # //////////////////////////////////////////////////////////////////////////////

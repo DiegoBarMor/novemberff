@@ -17,10 +17,12 @@
 <!-- ----------------------------------------------------------------------- -->
 # Examples
 * display energy sums:
-```python3 main.py testdata/1ato.pdb```
+```python3 main.py rna  testdata/1ato.pdb```
+```python3 main.py prot testdata/prot.pdb```
 
 * save energy arrays:
-```python3 main.py testdata/1ato.pdb testdata/output```
+```python3 main.py rna  testdata/1ato.pdb testdata/output/1ato```
+```python3 main.py prot testdata/prot.pdb testdata/output/prot```
 
 
 <!-- ----------------------------------------------------------------------- -->
@@ -30,6 +32,6 @@
 * add more forcefields.
 * remove OpenMM dependency for PDB parsing.
 * improve `bond_graphs`'s graph data structure.
-* finish refactoring of parser base class and `forcefield.from_xml`.
+* finish refactoring of parser base class and `forcefield.from_xml` (i.e. should be Parser's responsability to yield the needed data, not Forcefield).
 * allow to specify the forcefield to use in `main.py`, either by path or by name.
 * add option for saving the molecule's topology features (bonds, angles, etc), as well as their geometry values.

@@ -4,11 +4,14 @@ import november as nov
 
 # //////////////////////////////////////////////////////////////////////////////
 class FFDihedral:
+    ATOMTYPES = {}
+
+    # --------------------------------------------------------------------------
     def __init__(self,
         isProper: bool, k1: float, k2: float, k3: float, k4: float,
         periodicity1: int, periodicity2: int, periodicity3: int, periodicity4: int,
         phase1: float, phase2: float, phase3: float, phase4: float,
-        type1: nov.FFAtomType, type2: nov.FFAtomType, type3: nov.FFAtomType, type4: nov.FFAtomType
+        types: tuple[str, str, str, str]
     ):
         self.isProper = isProper
         self.k1 = k1
@@ -23,14 +26,24 @@ class FFDihedral:
         self.phase2 = phase2
         self.phase3 = phase3
         self.phase4 = phase4
-        self.type1 = type1
-        self.type2 = type2
-        self.type3 = type3
-        self.type4 = type4
+        self.type1 = self.ATOMTYPES[types[0]] if types[0] else None
+        self.type2 = self.ATOMTYPES[types[1]] if types[1] else None
+        self.type3 = self.ATOMTYPES[types[2]] if types[2] else None
+        self.type4 = self.ATOMTYPES[types[3]] if types[3] else None
 
+
+    # --------------------------------------------------------------------------
     def __repr__(self):
         return f"FFDihedral({self.type1}, {self.type2}, {self.type3}, {self.type4})"
 
+
+    # --------------------------------------------------------------------------
+    @classmethod
+    def register_atomtypes(cls, atomtypes: dict[str, nov.FFAtomType]):
+        cls.ATOMTYPES = atomtypes
+
+
+    # --------------------------------------------------------------------------
     def calc_energy(self, angle: float, contributor: int, proper: bool) -> float:
         match contributor:
             case 1:
