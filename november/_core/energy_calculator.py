@@ -1,6 +1,6 @@
 import numpy as np
 from pathlib import Path
-from openmm.app import PDBFile
+import MDAnalysis as mda
 
 import november as nov
 
@@ -8,10 +8,11 @@ import november as nov
 class EnergyCalculator:
     def __init__(self, path_pdb, path_forcefield):
         self._path_pdb = path_pdb
-        self._pdb = PDBFile(str(path_pdb))
+
+        self._pdb = mda.Universe(str(path_pdb), to_guess = ["elements", "bonds"])
         self._bgraph = nov.BondGraph(
-            self._pdb.topology.atoms(), self._pdb.topology.bonds(),
-            coords = self._pdb.positions
+            self._pdb.atoms, self._pdb.bonds,
+            coords = self._pdb.atoms.positions
         )
         self._forcefield = nov.ForceField.from_xml(path_forcefield)
 
@@ -96,7 +97,7 @@ class EnergyCalculator:
         for i,(a0,a1) in enumerate(self._bgraph.bonds):
             ff_bond = self._forcefield.get_ffbond(a0, a1)
 
-            length = self._bgraph.get_bond_length(a0.index, a1.index)
+            length = self._bgraph.calc_dist_2atoms(a0.index, a1.index)
             if "H" in a0.name+a1.name: # apply HBond constraints
                 length = ff_bond.length
 
@@ -108,7 +109,7 @@ class EnergyCalculator:
     def _calc_eangles(self):
         for i,(a0,a1,a2) in enumerate(self._bgraph.angles):
             ff_angle = self._forcefield.get_ffangle(a0, a1, a2)
-            angle  = self._bgraph.get_angle_3atoms(a0.index, a1.index, a2.index)
+            angle  = self._bgraph.calc_angle_3atoms(a0.index, a1.index, a2.index)
             energy = 0.5 * ff_angle.k * (angle - ff_angle.angle)**2
             self._arr_angle_energies[i] = energy
 
@@ -117,7 +118,7 @@ class EnergyCalculator:
     def _calc_ediheds(self):
         def _edihed_contributions(ff_dihed, ordered_atoms, is_proper):
             a0,a1,a2,a3 = ordered_atoms
-            angle = self._bgraph.get_angle_4atoms(a0, a1, a2, a3)
+            angle = self._bgraph.calc_dihed_4atoms(a0, a1, a2, a3)
             e1 = ff_dihed.calc_energy(angle, contributor = 1, proper = is_proper)
             e2 = ff_dihed.calc_energy(angle, contributor = 2, proper = is_proper)
             e3 = ff_dihed.calc_energy(angle, contributor = 3, proper = is_proper)
@@ -148,7 +149,7 @@ class EnergyCalculator:
         for i,(a0,a1,bond_edge_dist) in enumerate(self._bgraph.nonbonded_pairs):
             ff_nb0, ff_nb1, charge0, charge1 = self._forcefield.get_ffnonbonded(a0, a1)
 
-            inverse_r = 1 / self._bgraph.get_bond_length(a0.index, a1.index)
+            inverse_r = 1 / self._bgraph.calc_dist_2atoms(a0.index, a1.index)
             sigma = 0.5 * (ff_nb0.sigma + ff_nb1.sigma)
             epsilon = 4.0 * np.sqrt(ff_nb0.epsilon * ff_nb1.epsilon)
             charge = charge0 * charge1
@@ -167,24 +168,24 @@ class EnergyCalculator:
 
     # --------------------------------------------------------------------------
     def _fix_termini_res_labels_rna(self):
-        for res in self._pdb.topology.residues():
-            res_type = res.name[0]
+        for res in self._pdb.residues:
+            res_type = res.resname[0]
             if res_type not in "UCAG": continue
 
             isTerminus3 = False
             isTerminus5 = False
-            for atom in res.atoms():
+            for atom in res.atoms:
                 if atom.name == "HO5'": isTerminus5 = True
                 if atom.name == "HO3'": isTerminus3 = True
 
             if isTerminus3 and isTerminus5:
-                res.name = res_type + 'N'
+                res.resname = res_type + 'N'
             elif isTerminus3:
-                res.name = res_type + '3'
+                res.resname = res_type + '3'
             elif isTerminus5:
-                res.name = res_type + '5'
+                res.resname = res_type + '5'
             else:
-                res.name = res_type
+                res.resname = res_type
 
 
 # //////////////////////////////////////////////////////////////////////////////

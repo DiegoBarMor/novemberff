@@ -129,7 +129,7 @@ class ForceField:
         """
         Convert an OpenMM atom to a FF atom.
         """
-        ff_residue: nov.FFResidue = self._ffresidues[atom.residue.name]
+        ff_residue: nov.FFResidue = self._ffresidues[atom.residue.resname]
         return ff_residue.get_atom_by_name(atom.name)
 
 

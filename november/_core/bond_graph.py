@@ -30,8 +30,9 @@ class BondGraph:
 
         # ----------------------------------------------------------------------
         for bond in bonds: # init with direct bonds
-            self._bond_matrix[bond.atom1.index, bond.atom2.index] = 1
-            self._bond_matrix[bond.atom2.index, bond.atom1.index] = 1
+            a1,a2 = bond
+            self._bond_matrix[a1.index, a2.index] = 1
+            self._bond_matrix[a2.index, a1.index] = 1
 
         # ----------------------------------------------------------------------
         for i,row_i in enumerate(self._bond_matrix):
@@ -121,28 +122,22 @@ class BondGraph:
 
 
     # ----------------------------------------------------------------------
-    def get_bond_length(self, idx0, idx1):
-        return nov.Utils.vec3_norm(self.coords[idx0] - self.coords[idx1])
+    def calc_dist_2atoms(self, idx0, idx1):
+        dist = self.coords[idx0] - self.coords[idx1]
+        dist /= 10 # angstroms to nanometers
+        return np.linalg.norm(dist)
 
 
     # ----------------------------------------------------------------------
-    def get_bond_length_squared(self, idx0, idx1):
-        dx = self.coords[idx0].x - self.coords[idx1].x
-        dy = self.coords[idx0].y - self.coords[idx1].y
-        dz = self.coords[idx0].z - self.coords[idx1].z
-        return dx*dx + dy*dy + dz*dz
-
-
-    # ----------------------------------------------------------------------
-    def get_angle_3atoms(self, idx0, idx1, idx2):
+    def calc_angle_3atoms(self, idx0, idx1, idx2):
         vec0 = self.coords[idx0] - self.coords[idx1]
         vec1 = self.coords[idx2] - self.coords[idx1]
-        cosine = nov.Utils.vec3_dot(vec0, vec1) / (math.sqrt(nov.Utils.vec3_dot(vec0, vec0) * nov.Utils.vec3_dot(vec1, vec1)))
+        cosine = np.dot(vec0, vec1) / (math.sqrt(np.dot(vec0, vec0) * np.dot(vec1, vec1)))
         return math.acos(cosine) # radians
 
 
     # ----------------------------------------------------------------------
-    def get_angle_4atoms(self, idx0, idx1, idx2, idx3):
+    def calc_dihed_4atoms(self, idx0, idx1, idx2, idx3):
         # Assumes the following order of atoms:
         # PROPER DIHEDRALS
         #   1   3 :   1 1   3
@@ -159,13 +154,10 @@ class BondGraph:
         vec0 = self.coords[idx3] - self.coords[idx2]
         vec1 = self.coords[idx1] - self.coords[idx2]
         vec2 = self.coords[idx1] - self.coords[idx0]
-        n0 = nov.Utils.vec3_cross(vec0, vec1)
-        n1 = nov.Utils.vec3_cross(vec1, vec2)
+        n0 = np.cross(vec0, vec1)
+        n1 = np.cross(vec1, vec2)
         cosine = np.dot(n0, n1) / (math.sqrt(np.dot(n0, n0) * np.dot(n1, n1)))
 
-        vec0 = np.array((vec0.x, vec0.y, vec0.z))
-        vec1 = np.array((vec1.x, vec1.y, vec1.z))
-        vec2 = np.array((vec2.x, vec2.y, vec2.z))
         sign = 1 if np.dot(vec0, n1) > 0 else -1
         cosine = max(-1.0, min(1.0, cosine))
         return sign * math.acos(cosine)

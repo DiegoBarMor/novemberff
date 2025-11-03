@@ -30,7 +30,7 @@
 * improve CLI.
 * add documentation.
 * add more forcefields.
-* remove OpenMM dependency for PDB parsing.
+* remove MDAnalysis dependency for PDB parsing.
 * improve `bond_graphs`'s graph data structure.
 * finish refactoring of parser base class and `forcefield.from_xml` (i.e. should be Parser's responsability to yield the needed data, not Forcefield).
 * allow to specify the forcefield to use in `main.py`, either by path or by name.
