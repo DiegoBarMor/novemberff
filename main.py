@@ -19,7 +19,12 @@ if __name__ == "__main__":
         sys.exit(1)
 
 
-    calc = nov.EnergyCalculator(PATH_PDB, PATH_XML).calc_energies_rna()
+    calc = nov.EnergyCalculator(PATH_PDB, PATH_XML)
+    if MODE == "prot":
+        calc.calc_energies_prot()
+    else:
+        calc.calc_energies_rna()
+
 
     if len(sys.argv) >= 4:
         FOLDER_OUTPUT = sys.argv[3]

@@ -32,8 +32,17 @@ class EnergyCalculator:
 
 
     # --------------------------------------------------------------------------
+    def calc_energies_prot(self) -> "EnergyCalculator":
+        self._fix_prot_reslabels_aliases()
+        self._fix_prot_reslabels_termini()
+        self._fix_prot_atomlabels_aliases()
+        self._calc_energies()
+        return self
+
+
+    # --------------------------------------------------------------------------
     def calc_energies_rna(self) -> "EnergyCalculator":
-        self._fix_termini_res_labels_rna()
+        self._fix_rna_reslabels_termini()
         self._calc_energies()
         return self
 
@@ -86,22 +95,21 @@ class EnergyCalculator:
     def _calc_energies(self):
         ##### custom_e = (1 ± ε) * openmm_e
         self._calc_ebonded()   # ε = 1e-14
-        self._calc_eangles()   # ε = 1e-15
-        self._calc_ediheds()   # ε = 1e-4
-        self._calc_nonbonded() # ε = 1e-6
+        # self._calc_eangles()   # ε = 1e-15
+        # self._calc_ediheds()   # ε = 1e-4
+        # self._calc_nonbonded() # ε = 1e-6
 
 
     # --------------------------------------------------------------------------
     def _calc_ebonded(self):
         ###### [ORIGINAL SOURCE] platforms/reference/src/SimTKReference/ReferenceHarmonicBondlxn.cpp@111
         for i,(a0,a1) in enumerate(self._bgraph.bonds):
-            ff_bond = self._forcefield.get_ffbond(a0, a1)
+            if (a0.element == 'H') or (a1.element == 'H'): # apply HBond constraints
+                continue
 
-            length = self._bgraph.calc_dist_2atoms(a0.index, a1.index)
-            if "H" in a0.name+a1.name: # apply HBond constraints
-                length = ff_bond.length
-
-            energy = 0.5 * ff_bond.k * (ff_bond.length - length)**2
+            ff_bond  = self._forcefield.get_ffbond(a0, a1)
+            distance = self._bgraph.calc_dist_2atoms(a0.index, a1.index)
+            energy = 0.5 * ff_bond.k * (ff_bond.length - distance)**2
             self._arr_bond_energies[i] = energy
 
 
@@ -167,7 +175,34 @@ class EnergyCalculator:
 
 
     # --------------------------------------------------------------------------
-    def _fix_termini_res_labels_rna(self):
+    def _fix_prot_atomlabels_aliases(self):
+        for atom in self._pdb.atoms: # [WIP] crudely hardcoded to at least support the prot.pdb example
+            if (atom.residue.resname == "ILE") and (atom.name == "CD"):
+                atom.name = "CD1"; continue
+
+
+    # --------------------------------------------------------------------------
+    def _fix_prot_reslabels_aliases(self):
+        for res in self._pdb.residues: # [WIP] hardcoded for now to work with amber99sb.xml
+            if res.resname == "HIS": res.resname = "HIE"
+
+
+    # --------------------------------------------------------------------------
+    def _fix_prot_reslabels_termini(self):
+        residues = list(self._pdb.residues)
+        nres = len(residues)
+        for i,res in enumerate(residues): # [WIP] needs improvement, e.g. for multiple chains
+            if i == 0:
+                res.resname = f"N{res.resname}"
+            elif i == nres - 1:
+                res.resname = f"C{res.resname}"
+                for atom in res.atoms:
+                    if   atom.name == "O1": atom.name = "O"
+                    elif atom.name == "O2": atom.name = "OXT"
+
+
+    # --------------------------------------------------------------------------
+    def _fix_rna_reslabels_termini(self):
         for res in self._pdb.residues:
             res_type = res.resname[0]
             if res_type not in "UCAG": continue

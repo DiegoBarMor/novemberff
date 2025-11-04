@@ -28,6 +28,11 @@ class FFResidue:
 
 
     # --------------------------------------------------------------------------
+    def __repr__(self):
+        return f"FFResidue(name={self.name}, atoms={' '.join(self._atoms.keys())})"
+
+
+    # --------------------------------------------------------------------------
     def get_atom_by_name(self, name: str) -> FFAtom | None:
         return self._atoms.get(name)
 
