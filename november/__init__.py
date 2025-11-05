@@ -4,6 +4,7 @@ from ._parsers.ffparser import ForceFieldParser
 from ._parsers.ffparser_xml import FFParserXML, XMLNode
 
 from ._forcefield.particles import FFAtomType, FFAtom, FFResidue
+from ._forcefield.interaction import FFInteraction
 from ._forcefield.bonds import FFBond
 from ._forcefield.angles import FFAngle
 from ._forcefield.dihedrals import FFDihedral

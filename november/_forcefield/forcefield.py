@@ -5,7 +5,7 @@ class ForceField:
     def __init__(self, ff_data: dict):
         self._ffresidues  = ff_data["residues"]
         self._ffangles    = ff_data["angles"]
-        self._FFDihedrals    = ff_data["diheds"]
+        self._ffdiheds    = ff_data["diheds"]
         self._ffnonbonded = ff_data["nonbonded"]
 
         self.one_4pi_eps0 = nov.FFNonBonded.ONE_4PI_EPS0
@@ -65,18 +65,18 @@ class ForceField:
 
 
         for child in node_bonds.children:
-            types = (
+            strs_types = (
                 child.get_attr("type1"),
                 child.get_attr("type2"),
             )
-            classes = (
+            strs_classes = (
                 child.get_attr("class1"),
                 child.get_attr("class2"),
             )
             nov.FFBond.register_bond(
                 k      = float(child.get_attr("k")),
                 length = float(child.get_attr("length")),
-                types  = types, classes = classes,
+                strs_types = strs_types, strs_classes = strs_classes,
             )
 
         return cls(ff_data) # [WIP]
@@ -166,11 +166,9 @@ class ForceField:
         ff_a1 = self.omm2ff(atom1)
         ff_a2 = self.omm2ff(atom2)
 
-        key = (ff_a0.atom_type.name, ff_a1.atom_type.name, ff_a2.atom_type.name)
-        if key in self._ffangles.keys(): return self._ffangles[key]
-
-        key = (ff_a2.atom_type.name, ff_a1.atom_type.name, ff_a0.atom_type.name)
-        if key in self._ffangles.keys(): return self._ffangles[key]
+        for key in nov.FFAngle.iter_possible_keys(ff_a0, ff_a1, ff_a2):
+            if key in self._ffangles.keys():
+                return self._ffangles[key]
 
         raise KeyError(f"Angle type not found: {ff_a0.atom_type.name}-{ff_a1.atom_type.name}-{ff_a2.atom_type.name}")
 
@@ -190,9 +188,9 @@ class ForceField:
                 ff_a2.atom_type.name if mask[2] else '',
                 ff_a3.atom_type.name if mask[3] else '',
             )
-            if key in self._FFDihedrals.keys():
+            if key in self._ffdiheds.keys():
                 ordered_idxs = (a0.index, a1.index, a2.index, a3.index)
-                yield self._FFDihedrals[key], ordered_idxs
+                yield self._ffdiheds[key], ordered_idxs
 
 
     # --------------------------------------------------------------------------
@@ -215,9 +213,9 @@ class ForceField:
                 ff_a2.atom_type.name if mask[2] else '',
                 ff_a3.atom_type.name if mask[3] else '',
             )
-            if key in self._FFDihedrals.keys():
+            if key in self._ffdiheds.keys():
                 ordered_idxs = (a0.index, a1.index, a2.index, a3.index)
-                yield self._FFDihedrals[key], ordered_idxs
+                yield self._ffdiheds[key], ordered_idxs
 
 
     # --------------------------------------------------------------------------
