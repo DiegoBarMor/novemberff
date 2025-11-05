@@ -2,6 +2,7 @@ from ._misc.utils import Utils
 
 from ._parsers.ffparser import ForceFieldParser
 from ._parsers.ffparser_xml import FFParserXML, XMLNode
+from ._parsers.pdb_postprocess import PDBPostProcess
 
 from ._forcefield.particles import FFAtomType, FFAtom, FFResidue
 from ._forcefield.interaction import FFInteraction

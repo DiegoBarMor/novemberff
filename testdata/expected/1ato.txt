@@ -1,4 +1,4 @@
->>> Amber energies (OpenMM) for 'data/1ato.pdb':
+>>> Amber energies (OpenMM) for '../november/testdata/1ato.pdb':
   HarmonicBondForce: 136.73775105065022 kJ/mol
   PeriodicTorsionForce: 1976.3696484531397 kJ/mol
   NonbondedForce: 3783.145905276409 kJ/mol

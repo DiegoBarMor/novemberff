@@ -33,16 +33,16 @@ class EnergyCalculator:
 
     # --------------------------------------------------------------------------
     def calc_energies_prot(self) -> "EnergyCalculator":
-        self._fix_prot_reslabels_aliases()
-        self._fix_prot_reslabels_termini()
-        self._fix_prot_atomlabels_aliases()
+        nov.PDBPostProcess.fix_prot_reslabels_aliases(self._pdb)
+        nov.PDBPostProcess.fix_prot_reslabels_termini(self._pdb)
+        nov.PDBPostProcess.fix_prot_atomlabels_aliases(self._pdb)
         self._calc_energies()
         return self
 
 
     # --------------------------------------------------------------------------
     def calc_energies_rna(self) -> "EnergyCalculator":
-        self._fix_rna_reslabels_termini()
+        nov.PDBPostProcess.fix_rna_reslabels_termini(self._pdb)
         self._calc_energies()
         return self
 
@@ -172,55 +172,6 @@ class EnergyCalculator:
 
             self._arr_lennardj_energies[i] = energy_lj
             self._arr_coulomb_energies[i] = energy_coul
-
-
-    # --------------------------------------------------------------------------
-    def _fix_prot_atomlabels_aliases(self):
-        for atom in self._pdb.atoms: # [WIP] crudely hardcoded to at least support the prot.pdb example
-            if (atom.residue.resname == "ILE") and (atom.name == "CD"):
-                atom.name = "CD1"; continue
-
-
-    # --------------------------------------------------------------------------
-    def _fix_prot_reslabels_aliases(self):
-        for res in self._pdb.residues: # [WIP] hardcoded for now to work with amber99sb.xml
-            if res.resname == "HIS": res.resname = "HIE"
-
-
-    # --------------------------------------------------------------------------
-    def _fix_prot_reslabels_termini(self):
-        residues = list(self._pdb.residues)
-        nres = len(residues)
-        for i,res in enumerate(residues): # [WIP] needs improvement, e.g. for multiple chains
-            if i == 0:
-                res.resname = f"N{res.resname}"
-            elif i == nres - 1:
-                res.resname = f"C{res.resname}"
-                for atom in res.atoms:
-                    if   atom.name == "O1": atom.name = "O"
-                    elif atom.name == "O2": atom.name = "OXT"
-
-
-    # --------------------------------------------------------------------------
-    def _fix_rna_reslabels_termini(self):
-        for res in self._pdb.residues:
-            res_type = res.resname[0]
-            if res_type not in "UCAG": continue
-
-            isTerminus3 = False
-            isTerminus5 = False
-            for atom in res.atoms:
-                if atom.name == "HO5'": isTerminus5 = True
-                if atom.name == "HO3'": isTerminus3 = True
-
-            if isTerminus3 and isTerminus5:
-                res.resname = res_type + 'N'
-            elif isTerminus3:
-                res.resname = res_type + '3'
-            elif isTerminus5:
-                res.resname = res_type + '5'
-            else:
-                res.resname = res_type
 
 
 # //////////////////////////////////////////////////////////////////////////////
