@@ -34,7 +34,7 @@ class FFAngle(nov.FFInteraction):
 
     # --------------------------------------------------------------------------
     @classmethod
-    def get_angle(cls, atom1: nov.FFAtom, atom2: nov.FFAtom, atom3: nov.FFAtom):
+    def get_angle(cls, atom1: nov.FFAtom, atom2: nov.FFAtom, atom3: nov.FFAtom) -> "nov.FFAngle":
         _current_map = cls._get_current_map()
         for key in cls._iter_possible_keys(atom1, atom2, atom3):
             if key in _current_map:

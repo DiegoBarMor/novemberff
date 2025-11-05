@@ -32,7 +32,7 @@ class FFBond(nov.FFInteraction):
 
     # --------------------------------------------------------------------------
     @classmethod
-    def get_bond(cls, atom1: nov.FFAtom, atom2: nov.FFAtom):
+    def get_bond(cls, atom1: nov.FFAtom, atom2: nov.FFAtom) -> "nov.FFBond":
         _current_map = cls._get_current_map()
         for key in cls._iter_possible_keys(atom1, atom2):
             if key in _current_map:

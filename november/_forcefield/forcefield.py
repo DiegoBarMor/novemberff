@@ -3,12 +3,10 @@ import november as nov
 # //////////////////////////////////////////////////////////////////////////////
 class ForceField:
     def __init__(self, ff_data: dict):
-        self._ffresidues  = ff_data["residues"]
-        self._ffnonbonded = ff_data["nonbonded"]
-
-        self.one_4pi_eps0 = nov.FFNonBonded.ONE_4PI_EPS0
-        self.lj_14scale = ff_data["LJ14SCALE"]
+        self._ffresidues     = ff_data["residues"]
+        self.lj_14scale      = ff_data["LJ14SCALE"]
         self.coulomb_14scale = ff_data["COULOMB14SCALE"]
+        self.one_4pi_eps0    = nov.FFNonBonded.ONE_4PI_EPS0
 
     # --------------------------------------------------------------------------
     @classmethod
@@ -28,7 +26,7 @@ class ForceField:
         node_nonbonded = node_ff.get_child_by_name("NonbondedForce")
 
         ff_data = {
-            "types": {}, "residues": {}, "nonbonded": {},
+            "types": {}, "residues": {},
             "LJ14SCALE":      float(node_nonbonded.get_attr("lj14scale")),
             "COULOMB14SCALE": float(node_nonbonded.get_attr("coulomb14scale")),
         }
@@ -46,7 +44,7 @@ class ForceField:
         nov.FFBond.register_atomtypes(ffatomtypes)
         nov.FFAngle.register_atomtypes(ffatomtypes)
         nov.FFDihedral.register_atomtypes(ffatomtypes)
-
+        nov.FFNonBonded.register_atomtypes(ffatomtypes)
 
         for residue_node in node_resids.children:
             resname = residue_node.get_attr("name")
@@ -59,7 +57,6 @@ class ForceField:
                 ) for node in atom_nodes
             }
             ff_data["residues"][resname] = nov.FFResidue(resname, atoms)
-
 
         for child in node_bonds.children:
             strs_types = (
@@ -75,7 +72,6 @@ class ForceField:
                 length = float(child.get_attr("length")),
                 strs_types = strs_types, strs_classes = strs_classes,
             )
-
 
         for child in node_angles.children:
             strs_types = (
@@ -93,7 +89,6 @@ class ForceField:
                 angle = float(child.get_attr("angle")),
                 strs_types = strs_types, strs_classes = strs_classes,
             )
-
 
         for child in node_diheds.children:
             strs_types = (
@@ -122,17 +117,16 @@ class ForceField:
                 strs_types = strs_types, strs_classes = strs_classes,
             )
 
-        return cls(ff_data) # [WIP]
-
         for child in node_nonbonded.children:
             if child.tag_name != "Atom": continue
-            t1 = child.get_attr("type")
-            ff_data["nonbonded"][t1] = nov.FFNonBonded(
-                epsilon   = float(child.get_attr("epsilon")),
-                sigma     = float(child.get_attr("sigma")),
-                atom_type = ffatomtypes[t1],
+            str_type  = child.get_attr("type")
+            str_class = child.get_attr("class")
+            nov.FFNonBonded.register_nonbonded(
+                epsilon  = float(child.get_attr("epsilon")),
+                sigma    = float(child.get_attr("sigma")),
+                charge   = _safe_float(child.get_attr("charge")),
+                str_type = str_type, str_class = str_class,
             )
-
 
         return cls(ff_data)
 
@@ -198,10 +192,13 @@ class ForceField:
     def get_ffnonbonded(self, a0, a1):
             ff_a0 = self.omm2ff(a0)
             ff_a1 = self.omm2ff(a1)
-            ff_nb0 = self._ffnonbonded[ff_a0.atom_type.name]
-            ff_nb1 = self._ffnonbonded[ff_a1.atom_type.name]
-            charge0 = ff_a0.charge
-            charge1 = ff_a1.charge
+            ff_nb0 = nov.FFNonBonded.get_nonbonded(ff_a0)
+            ff_nb1 = nov.FFNonBonded.get_nonbonded(ff_a1)
+
+            ### charges are sometimes stored in the Residue.Atom XML-nodes (e.g. in RNA.OL3.xml)
+            ### other times, they are stored in the Nonbonded XML-nodes (e.g. in amber99sb.xml)
+            charge0 = ff_a0.charge if ff_nb0.charge is None else ff_nb0.charge
+            charge1 = ff_a1.charge if ff_nb1.charge is None else ff_nb1.charge
             return ff_nb0, ff_nb1, charge0, charge1
 
 

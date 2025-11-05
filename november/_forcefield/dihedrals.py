@@ -86,7 +86,7 @@ class FFDihedral(nov.FFInteraction):
         atom1: nov.FFAtom, atom2: nov.FFAtom,
         atom3: nov.FFAtom, atom4: nov.FFAtom,
         mask: tuple[bool, bool, bool, bool]
-    ):
+    ) -> "nov.FFDihedral | None":
         def _id(a: nov.FFAtom) -> str:
             return a.atom_type.name if cls._USING_NAMES else a.atom_type.atom_class
 

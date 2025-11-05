@@ -1,9 +1,12 @@
 import sys
+import warnings
 
 import november as nov
 
 ################################################################################
 if __name__ == "__main__":
+    warnings.filterwarnings("ignore", module = "MDAnalysis.*")
+
     try:
         MODE     = sys.argv[1].lower()
         PATH_PDB = sys.argv[2]
