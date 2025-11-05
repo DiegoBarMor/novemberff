@@ -3,21 +3,19 @@ import november as nov
 # //////////////////////////////////////////////////////////////////////////////
 class ForceField:
     def __init__(self, ff_data: dict):
-        self._ffresidues  = ff_data["residues"]
-        self._ffbonds     = ff_data["bonds"]
-        self._ffangles    = ff_data["angles"]
-        self._FFDihedrals    = ff_data["diheds"]
-        self._ffnonbonded = ff_data["nonbonded"]
-
-        self.one_4pi_eps0 = nov.FFNonBonded.ONE_4PI_EPS0
-        self.lj_14scale = ff_data["LJ14SCALE"]
+        self._ffresidues     = ff_data["residues"]
+        self.lj_14scale      = ff_data["LJ14SCALE"]
         self.coulomb_14scale = ff_data["COULOMB14SCALE"]
+        self.one_4pi_eps0    = nov.FFNonBonded.ONE_4PI_EPS0
 
     # --------------------------------------------------------------------------
     @classmethod
     def from_xml(cls, path_xml):
         xml = nov.FFParserXML(path_xml)
         xml.parse()
+
+        _safe_int   = lambda s: None if s is None else int(s)
+        _safe_float = lambda s: None if s is None else float(s)
 
         node_ff        = xml.root.get_child_by_name("ForceField")
         node_types     = node_ff.get_child_by_name("AtomTypes")
@@ -29,7 +27,6 @@ class ForceField:
 
         ff_data = {
             "types": {}, "residues": {},
-            "bonds": {}, "angles": {}, "diheds": {}, "nonbonded": {},
             "LJ14SCALE":      float(node_nonbonded.get_attr("lj14scale")),
             "COULOMB14SCALE": float(node_nonbonded.get_attr("coulomb14scale")),
         }
@@ -47,7 +44,7 @@ class ForceField:
         nov.FFBond.register_atomtypes(ffatomtypes)
         nov.FFAngle.register_atomtypes(ffatomtypes)
         nov.FFDihedral.register_atomtypes(ffatomtypes)
-
+        nov.FFNonBonded.register_atomtypes(ffatomtypes)
 
         for residue_node in node_resids.children:
             resname = residue_node.get_attr("name")
@@ -55,71 +52,81 @@ class ForceField:
             atoms = {
                 node.get_attr("name") : nov.FFAtom(
                     name      = node.get_attr("name"),
-                    charge    = float(node.get_attr("charge")),
+                    charge    = _safe_float(node.get_attr("charge")),
                     atom_type = ffatomtypes[node.get_attr("type")],
                 ) for node in atom_nodes
             }
             ff_data["residues"][resname] = nov.FFResidue(resname, atoms)
 
-
         for child in node_bonds.children:
-            t1 = child.get_attr("type1")
-            t2 = child.get_attr("type2")
-            types = (t1, t2)
-            ff_data["bonds"][types] = nov.FFBond(
+            strs_types = (
+                child.get_attr("type1"),
+                child.get_attr("type2"),
+            )
+            strs_classes = (
+                child.get_attr("class1"),
+                child.get_attr("class2"),
+            )
+            nov.FFBond.register_bond(
                 k      = float(child.get_attr("k")),
                 length = float(child.get_attr("length")),
-                types  = types,
+                strs_types = strs_types, strs_classes = strs_classes,
             )
-
 
         for child in node_angles.children:
-            t1 = child.get_attr("type1")
-            t2 = child.get_attr("type2")
-            t3 = child.get_attr("type3")
-            types = (t1, t2, t3)
-            ff_data["angles"][types] = nov.FFAngle(
-                k      = float(child.get_attr("k")),
-                angle  = float(child.get_attr("angle")),
-                types  = types,
+            strs_types = (
+                child.get_attr("type1"),
+                child.get_attr("type2"),
+                child.get_attr("type3"),
+            )
+            strs_classes = (
+                child.get_attr("class1"),
+                child.get_attr("class2"),
+                child.get_attr("class3"),
+            )
+            nov.FFAngle.register_angle(
+                k     = float(child.get_attr("k")),
+                angle = float(child.get_attr("angle")),
+                strs_types = strs_types, strs_classes = strs_classes,
             )
 
-
-        _safe_int   = lambda s: None if s is None else int(s)
-        _safe_float = lambda s: None if s is None else float(s)
         for child in node_diheds.children:
-            t1 = child.get_attr("type1")
-            t2 = child.get_attr("type2")
-            t3 = child.get_attr("type3")
-            t4 = child.get_attr("type4")
-            types = (t1, t2, t3, t4)
-            ff_data["diheds"][types] = nov.FFDihedral(
-                isProper = child.tag_name == "Proper",
-                k1 = _safe_float(child.get_attr("k1")),
-                k2 = _safe_float(child.get_attr("k2")),
-                k3 = _safe_float(child.get_attr("k3")),
-                k4 = _safe_float(child.get_attr("k4")),
-                periodicity1 = _safe_int(child.get_attr("periodicity1")),
-                periodicity2 = _safe_int(child.get_attr("periodicity2")),
-                periodicity3 = _safe_int(child.get_attr("periodicity3")),
-                periodicity4 = _safe_int(child.get_attr("periodicity4")),
-                phase1 = _safe_float(child.get_attr("phase1")),
-                phase2 = _safe_float(child.get_attr("phase2")),
-                phase3 = _safe_float(child.get_attr("phase3")),
-                phase4 = _safe_float(child.get_attr("phase4")),
-                types = types,
+            strs_types = (
+                child.get_attr("type1"),
+                child.get_attr("type2"),
+                child.get_attr("type3"),
+                child.get_attr("type4"),
             )
-
+            strs_classes = (
+                child.get_attr("class1"),
+                child.get_attr("class2"),
+                child.get_attr("class3"),
+                child.get_attr("class4"),
+            )
+            nov.FFDihedral.register_dihed(
+                isProper = child.tag_name == "Proper",
+                ks = [
+                    _safe_float(child.get_attr(f"k{i}")) for i in range(1,5)
+                ],
+                periodicities = [
+                    _safe_int(child.get_attr(f"periodicity{i}")) for i in range(1,5)
+                ],
+                phases = [
+                    _safe_float(child.get_attr(f"phase{i}")) for i in range(1,5)
+                ],
+                strs_types = strs_types, strs_classes = strs_classes,
+            )
 
         for child in node_nonbonded.children:
             if child.tag_name != "Atom": continue
-            t1 = child.get_attr("type")
-            ff_data["nonbonded"][t1] = nov.FFNonBonded(
-                epsilon   = float(child.get_attr("epsilon")),
-                sigma     = float(child.get_attr("sigma")),
-                atom_type = ffatomtypes[t1],
+            str_type  = child.get_attr("type")
+            str_class = child.get_attr("class")
+            nov.FFNonBonded.register_nonbonded(
+                epsilon  = float(child.get_attr("epsilon")),
+                sigma    = float(child.get_attr("sigma")),
+                charge   = _safe_float(child.get_attr("charge")),
+                str_type = str_type, str_class = str_class,
             )
-
 
         return cls(ff_data)
 
@@ -137,14 +144,7 @@ class ForceField:
     def get_ffbond(self, atom0, atom1) -> nov.FFBond:
         ff_a0 = self.omm2ff(atom0)
         ff_a1 = self.omm2ff(atom1)
-
-        key = (ff_a0.atom_type.name, ff_a1.atom_type.name)
-        if key in self._ffbonds.keys(): return self._ffbonds[key]
-
-        key = (ff_a1.atom_type.name, ff_a0.atom_type.name)
-        if key in self._ffbonds.keys(): return self._ffbonds[key]
-
-        raise KeyError(f"Bond type not found: {ff_a0.atom_type.name}-{ff_a1.atom_type.name}")
+        return nov.FFBond.get_bond(ff_a0, ff_a1)
 
 
     # --------------------------------------------------------------------------
@@ -152,14 +152,7 @@ class ForceField:
         ff_a0 = self.omm2ff(atom0)
         ff_a1 = self.omm2ff(atom1)
         ff_a2 = self.omm2ff(atom2)
-
-        key = (ff_a0.atom_type.name, ff_a1.atom_type.name, ff_a2.atom_type.name)
-        if key in self._ffangles.keys(): return self._ffangles[key]
-
-        key = (ff_a2.atom_type.name, ff_a1.atom_type.name, ff_a0.atom_type.name)
-        if key in self._ffangles.keys(): return self._ffangles[key]
-
-        raise KeyError(f"Angle type not found: {ff_a0.atom_type.name}-{ff_a1.atom_type.name}-{ff_a2.atom_type.name}")
+        return nov.FFAngle.get_angle(ff_a0, ff_a1, ff_a2)
 
 
     # --------------------------------------------------------------------------
@@ -170,16 +163,10 @@ class ForceField:
             ff_a1 = self.omm2ff(a1)
             ff_a2 = self.omm2ff(a2)
             ff_a3 = self.omm2ff(a3)
-
-            key = (
-                ff_a0.atom_type.name if mask[0] else '',
-                ff_a1.atom_type.name if mask[1] else '',
-                ff_a2.atom_type.name if mask[2] else '',
-                ff_a3.atom_type.name if mask[3] else '',
-            )
-            if key in self._FFDihedrals.keys():
+            dihed = nov.FFDihedral.get_dihed(ff_a0, ff_a1, ff_a2, ff_a3, mask)
+            if dihed is not None:
                 ordered_idxs = (a0.index, a1.index, a2.index, a3.index)
-                yield self._FFDihedrals[key], ordered_idxs
+                yield dihed, ordered_idxs
 
 
     # --------------------------------------------------------------------------
@@ -195,26 +182,23 @@ class ForceField:
             ff_a1 = self.omm2ff(a0)
             ff_a2 = self.omm2ff(a2)
             ff_a3 = self.omm2ff(a3)
-
-            key = (
-                ff_a0.atom_type.name if mask[0] else '',
-                ff_a1.atom_type.name if mask[1] else '',
-                ff_a2.atom_type.name if mask[2] else '',
-                ff_a3.atom_type.name if mask[3] else '',
-            )
-            if key in self._FFDihedrals.keys():
+            dihed = nov.FFDihedral.get_dihed(ff_a0, ff_a1, ff_a2, ff_a3, mask)
+            if dihed is not None:
                 ordered_idxs = (a0.index, a1.index, a2.index, a3.index)
-                yield self._FFDihedrals[key], ordered_idxs
+                yield dihed, ordered_idxs
 
 
     # --------------------------------------------------------------------------
     def get_ffnonbonded(self, a0, a1):
             ff_a0 = self.omm2ff(a0)
             ff_a1 = self.omm2ff(a1)
-            ff_nb0 = self._ffnonbonded[ff_a0.atom_type.name]
-            ff_nb1 = self._ffnonbonded[ff_a1.atom_type.name]
-            charge0 = ff_a0.charge
-            charge1 = ff_a1.charge
+            ff_nb0 = nov.FFNonBonded.get_nonbonded(ff_a0)
+            ff_nb1 = nov.FFNonBonded.get_nonbonded(ff_a1)
+
+            ### charges are sometimes stored in the Residue.Atom XML-nodes (e.g. in RNA.OL3.xml)
+            ### other times, they are stored in the Nonbonded XML-nodes (e.g. in amber99sb.xml)
+            charge0 = ff_a0.charge if ff_nb0.charge is None else ff_nb0.charge
+            charge1 = ff_a1.charge if ff_nb1.charge is None else ff_nb1.charge
             return ff_nb0, ff_nb1, charge0, charge1
 
 

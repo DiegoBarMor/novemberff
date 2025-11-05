@@ -32,8 +32,17 @@ class EnergyCalculator:
 
 
     # --------------------------------------------------------------------------
+    def calc_energies_prot(self) -> "EnergyCalculator":
+        nov.PDBPostProcess.fix_prot_atomlabels_aliases(self._pdb)
+        nov.PDBPostProcess.fix_prot_reslabels_aliases(self._pdb)
+        nov.PDBPostProcess.fix_prot_reslabels_termini(self._pdb)
+        self._calc_energies()
+        return self
+
+
+    # --------------------------------------------------------------------------
     def calc_energies_rna(self) -> "EnergyCalculator":
-        self._fix_termini_res_labels_rna()
+        nov.PDBPostProcess.fix_rna_reslabels_termini(self._pdb)
         self._calc_energies()
         return self
 
@@ -84,7 +93,7 @@ class EnergyCalculator:
 
     # --------------------------------------------------------------------------
     def _calc_energies(self):
-        ##### custom_e = (1 ± ε) * openmm_e
+        ##### november_e = (1 ± ε) * openmm_e
         self._calc_ebonded()   # ε = 1e-14
         self._calc_eangles()   # ε = 1e-15
         self._calc_ediheds()   # ε = 1e-4
@@ -95,13 +104,12 @@ class EnergyCalculator:
     def _calc_ebonded(self):
         ###### [ORIGINAL SOURCE] platforms/reference/src/SimTKReference/ReferenceHarmonicBondlxn.cpp@111
         for i,(a0,a1) in enumerate(self._bgraph.bonds):
-            ff_bond = self._forcefield.get_ffbond(a0, a1)
+            if (a0.element == 'H') or (a1.element == 'H'): # apply HBond constraints
+                continue
 
-            length = self._bgraph.calc_dist_2atoms(a0.index, a1.index)
-            if "H" in a0.name+a1.name: # apply HBond constraints
-                length = ff_bond.length
-
-            energy = 0.5 * ff_bond.k * (ff_bond.length - length)**2
+            ff_bond  = self._forcefield.get_ffbond(a0, a1)
+            distance = self._bgraph.calc_dist_2atoms(a0.index, a1.index)
+            energy = 0.5 * ff_bond.k * (ff_bond.length - distance)**2
             self._arr_bond_energies[i] = energy
 
 
@@ -164,28 +172,6 @@ class EnergyCalculator:
 
             self._arr_lennardj_energies[i] = energy_lj
             self._arr_coulomb_energies[i] = energy_coul
-
-
-    # --------------------------------------------------------------------------
-    def _fix_termini_res_labels_rna(self):
-        for res in self._pdb.residues:
-            res_type = res.resname[0]
-            if res_type not in "UCAG": continue
-
-            isTerminus3 = False
-            isTerminus5 = False
-            for atom in res.atoms:
-                if atom.name == "HO5'": isTerminus5 = True
-                if atom.name == "HO3'": isTerminus3 = True
-
-            if isTerminus3 and isTerminus5:
-                res.resname = res_type + 'N'
-            elif isTerminus3:
-                res.resname = res_type + '3'
-            elif isTerminus5:
-                res.resname = res_type + '5'
-            else:
-                res.resname = res_type
 
 
 # //////////////////////////////////////////////////////////////////////////////

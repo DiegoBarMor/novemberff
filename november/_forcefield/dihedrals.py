@@ -3,33 +3,32 @@ import math
 import november as nov
 
 # //////////////////////////////////////////////////////////////////////////////
-class FFDihedral:
-    ATOMTYPES = {}
-
-    # --------------------------------------------------------------------------
+class FFDihedral(nov.FFInteraction):
     def __init__(self,
-        isProper: bool, k1: float, k2: float, k3: float, k4: float,
-        periodicity1: int, periodicity2: int, periodicity3: int, periodicity4: int,
-        phase1: float, phase2: float, phase3: float, phase4: float,
-        types: tuple[str, str, str, str]
+        isProper: bool,
+        ks: tuple[float, float, float, float],
+        periodicities: tuple[int, int, int, int],
+        phases: tuple[float, float, float, float],
+        type1: "nov.FFAtomType", type2: "nov.FFAtomType",
+        type3: "nov.FFAtomType", type4: "nov.FFAtomType",
     ):
         self.isProper = isProper
-        self.k1 = k1
-        self.k2 = k2
-        self.k3 = k3
-        self.k4 = k4
-        self.periodicity1 = periodicity1
-        self.periodicity2 = periodicity2
-        self.periodicity3 = periodicity3
-        self.periodicity4 = periodicity4
-        self.phase1 = phase1
-        self.phase2 = phase2
-        self.phase3 = phase3
-        self.phase4 = phase4
-        self.type1 = self.ATOMTYPES[types[0]] if types[0] else None
-        self.type2 = self.ATOMTYPES[types[1]] if types[1] else None
-        self.type3 = self.ATOMTYPES[types[2]] if types[2] else None
-        self.type4 = self.ATOMTYPES[types[3]] if types[3] else None
+        self.k1 = ks[0]
+        self.k2 = ks[1]
+        self.k3 = ks[2]
+        self.k4 = ks[3]
+        self.periodicity1 = periodicities[0]
+        self.periodicity2 = periodicities[1]
+        self.periodicity3 = periodicities[2]
+        self.periodicity4 = periodicities[3]
+        self.phase1 = phases[0]
+        self.phase2 = phases[1]
+        self.phase3 = phases[2]
+        self.phase4 = phases[3]
+        self.type1 = type1
+        self.type2 = type2
+        self.type3 = type3
+        self.type4 = type4
 
 
     # --------------------------------------------------------------------------
@@ -39,8 +38,18 @@ class FFDihedral:
 
     # --------------------------------------------------------------------------
     @classmethod
-    def register_atomtypes(cls, atomtypes: dict[str, nov.FFAtomType]):
-        cls.ATOMTYPES = atomtypes
+    def register_dihed(cls,
+        isProper: bool,
+        ks: tuple[float, float, float, float],
+        periodicities: tuple[int, int, int, int],
+        phases: tuple[float, float, float, float],
+        strs_types:   tuple[str|None, str|None, str|None],
+        strs_classes: tuple[str|None, str|None, str|None],
+    ):
+        cls._decide_whether_using_names(strs_types, strs_classes)
+        fftypes = cls._get_fftypes(strs_types, strs_classes)
+        obj_dihed = cls(isProper, ks, periodicities, phases, *fftypes)
+        cls._register_interaction(strs_types, strs_classes, obj_dihed)
 
 
     # --------------------------------------------------------------------------
@@ -69,6 +78,25 @@ class FFDihedral:
         ### [ORIGINAL SOURCE] platforms/reference/src/SimTKReference/ReferenceProperDihedralBond.cpp@ReferenceProperDihedralBond::calculateBondIxn
         delta_angle = periodicity * angle - phase # [WIP]
         return k * (1.0 + math.cos(delta_angle)) # [WIP]
+
+
+    # --------------------------------------------------------------------------
+    @classmethod
+    def get_dihed(cls,
+        atom1: nov.FFAtom, atom2: nov.FFAtom,
+        atom3: nov.FFAtom, atom4: nov.FFAtom,
+        mask: tuple[bool, bool, bool, bool]
+    ) -> "nov.FFDihedral | None":
+        def _id(a: nov.FFAtom) -> str:
+            return a.atom_type.name if cls._USING_NAMES else a.atom_type.atom_class
+
+        key = (
+            _id(atom1) if mask[0] else '',
+            _id(atom2) if mask[1] else '',
+            _id(atom3) if mask[2] else '',
+            _id(atom4) if mask[3] else '',
+        )
+        return cls._get_current_map().get(key)
 
 
 # //////////////////////////////////////////////////////////////////////////////
