@@ -63,35 +63,44 @@ class EnergyCalculator:
 
 
     # --------------------------------------------------------------------------
-    def get_ebond_arr(self):     return self._arr_bond_energies
-    def get_eangle_arr(self):    return self._arr_angle_energies
-    def get_eproper_arr(self):   return self._arr_proper_energies
-    def get_eimproper_arr(self): return self._arr_improper_energies
-    def get_elennardj_arr(self): return self._arr_lennardj_energies
-    def get_ecoulomb_arr(self):  return self._arr_coulomb_energies
+    def get_array_ebond(self):     return self._arr_bond_energies
+    def get_array_eangle(self):    return self._arr_angle_energies
+    def get_array_eproper(self):   return self._arr_proper_energies
+    def get_array_eimproper(self): return self._arr_improper_energies
+    def get_array_elennardj(self): return self._arr_lennardj_energies
+    def get_array_ecoulomb(self):  return self._arr_coulomb_energies
+
+    def get_array_edihed(self):
+        return np.concat((self.get_array_eproper(), self.get_array_eimproper()))
+
+    def get_array_enonbonded(self):
+        return np.concat((self.get_array_elennardj(), self.get_array_ecoulomb()))
 
 
     # --------------------------------------------------------------------------
-    def get_ebond_sum(self):     return np.sum(self._arr_bond_energies)
-    def get_eangle_sum(self):    return np.sum(self._arr_angle_energies)
-    def get_eproper_sum(self):   return np.sum(self._arr_proper_energies)
-    def get_eimproper_sum(self): return np.sum(self._arr_improper_energies)
-    def get_elennardj_sum(self): return np.sum(self._arr_lennardj_energies)
-    def get_ecoulomb_sum(self):  return np.sum(self._arr_coulomb_energies)
+    def get_sum_ebond(self):     return np.sum(self._arr_bond_energies)
+    def get_sum_eangle(self):    return np.sum(self._arr_angle_energies)
+    def get_sum_eproper(self):   return np.sum(self._arr_proper_energies)
+    def get_sum_eimproper(self): return np.sum(self._arr_improper_energies)
+    def get_sum_elennardj(self): return np.sum(self._arr_lennardj_energies)
+    def get_sum_ecoulomb(self):  return np.sum(self._arr_coulomb_energies)
 
-    def get_edihed_sum(self):     return self.get_eproper_sum() + self.get_eimproper_sum()
-    def get_enonbonded_sum(self): return self.get_elennardj_sum() + self.get_ecoulomb_sum()
+    def get_sum_edihed(self):
+        return self.get_sum_eproper() + self.get_sum_eimproper()
+
+    def get_sum_enonbonded(self):
+        return self.get_sum_elennardj() + self.get_sum_ecoulomb()
 
 
     # --------------------------------------------------------------------------
     def display_energies(self):
         print(f">>> Amber energies (NovemberFF) for '{self._path_pdb}':")
-        print("  BondEnergy:",  self.get_ebond_sum())
-        print("  AngleEnergy:", self.get_eangle_sum())
-        print("  DihedEnergy:", self.get_edihed_sum())
-        print("  Nonbonded:", self.get_enonbonded_sum())
-        print("  ... LennardJones:", self.get_elennardj_sum())
-        print("  ... Coulomb:", self.get_ecoulomb_sum())
+        print("  BondEnergy:",  self.get_sum_ebond())
+        print("  AngleEnergy:", self.get_sum_eangle())
+        print("  DihedEnergy:", self.get_sum_edihed())
+        print("  Nonbonded:",   self.get_sum_enonbonded())
+        print("  ... LennardJones:", self.get_sum_elennardj())
+        print("  ... Coulomb:",      self.get_sum_ecoulomb())
 
 
     # --------------------------------------------------------------------------
@@ -139,7 +148,7 @@ class EnergyCalculator:
 
     # --------------------------------------------------------------------------
     def _calc_ediheds(self):
-        def _edihed_contributions(ff_dihed, ordered_atoms, is_proper):
+        def _edihed_contributions(ff_dihed: nov.FFDihedral, ordered_atoms, is_proper):
             a0,a1,a2,a3 = ordered_atoms
             angle = self._bgraph.calc_dihed_4atoms(a0, a1, a2, a3)
             e1 = ff_dihed.calc_energy(angle, contributor = 1, proper = is_proper)
