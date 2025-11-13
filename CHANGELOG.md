@@ -8,3 +8,7 @@
 
 ## [0.3.0] - 2021-11-10
 - Changed the API of the energy getters.
+
+## [0.4.0] - 2021-11-13
+- Fixed missing `package_data` in `setup.py`.
+- Added method to `EnergyCalculator` for saving metadata into a CSV file.

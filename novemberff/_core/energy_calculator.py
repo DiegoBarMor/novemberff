@@ -93,6 +93,12 @@ class EnergyCalculator:
 
 
     # --------------------------------------------------------------------------
+    def set_positions(self, positions: np.ndarray):
+        self._pdb.atoms.positions = positions
+        self._bgraph.set_positions(positions)
+
+
+    # --------------------------------------------------------------------------
     def display_energies(self):
         print(f">>> Amber energies (NovemberFF) for '{self._path_pdb}':")
         print("  BondEnergy:",  self.get_sum_ebond())
@@ -114,6 +120,67 @@ class EnergyCalculator:
         np.save(folder_output / f"lennardjs.npy", self._arr_lennardj_energies)
         np.save(folder_output / f"coulombs.npy",  self._arr_coulomb_energies )
 
+
+    # --------------------------------------------------------------------------
+    def save_metadata_csv(self,
+        path_csv: str | Path,
+        bonds = True, # [WIP] improve customizable metadata export
+        angles = True,
+        diheds = True,
+        nonbonded = True,
+    ):
+        def _idxs(atoms) -> int:
+            return (a.index for a in atoms)
+
+        def _generic_metadata(atoms) -> tuple[str, str, str, str]:
+            return (
+                '-'.join(map(lambda a: f"{a.index:02}",      atoms)),
+                '-'.join(map(lambda a: a.name.lower(),       atoms)),
+                '-'.join(map(lambda a: f"{a.residue.resid}", atoms)),
+                '-'.join(map(lambda a: a.residue.resname,    atoms)),
+            )
+
+        header = ["interaction", "kind", "intshort", "idxs", "names", "residxs", "resnames", "geometry"]
+        nov.Utils.init_csv(path_csv, *header)
+
+        if bonds:
+            for atoms in self._bgraph.bonds:
+                nov.Utils.append_to_csv(path_csv,
+                    "bond", "bond", 'b',
+                    *_generic_metadata(atoms),
+                    self._bgraph.calc_dist_2atoms(*_idxs(atoms)),
+                )
+
+        if angles:
+            for atoms in self._bgraph.angles:
+                nov.Utils.append_to_csv(path_csv,
+                    "angle", "angle", 'a',
+                    *_generic_metadata(atoms),
+                    self._bgraph.calc_angle_3atoms(*_idxs(atoms)),
+                )
+
+        if diheds:
+            for atoms in self._bgraph.proper_diheds:
+                nov.Utils.append_to_csv(path_csv,
+                    "dihed", "proper", 'p',
+                    *_generic_metadata(atoms),
+                    self._bgraph.calc_dihed_4atoms(*_idxs(atoms)),
+                )
+            for atoms in self._bgraph.improper_diheds:
+                nov.Utils.append_to_csv(path_csv,
+                    "dihed", "improper", 'i',
+                    *_generic_metadata(atoms),
+                    self._bgraph.calc_dihed_4atoms(*_idxs(atoms)),
+                )
+
+        if nonbonded:
+            for a0, a1, _ in self._bgraph.nonbonded_pairs:
+                atoms = (a0, a1)
+                nov.Utils.append_to_csv(path_csv,
+                    "nonbonded", "nonbonded", 'n',
+                    *_generic_metadata(atoms),
+                    self._bgraph.calc_dist_2atoms(*_idxs(atoms)),
+                )
 
     # --------------------------------------------------------------------------
     def _calc_energies(self):

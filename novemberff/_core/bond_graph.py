@@ -2,8 +2,6 @@ import math
 import numpy as np
 from enum import Enum, auto
 
-import novemberff as nov
-
 # //////////////////////////////////////////////////////////////////////////////
 class BondEdgeDist(Enum):
     short = auto()
@@ -18,7 +16,7 @@ class BondGraph:
     # --------------------------------------------------------------------------
     def __init__(self, atoms, bonds, coords):
         self.atoms = list(atoms)
-        self.coords = list(coords)
+        self.coords: np.array = coords
         self._bond_matrix = np.full((len(self.atoms), len(self.atoms)), self.LARGE_INT, dtype = int)
 
         self.bonds = [] # [(a1, a2), ...]
@@ -119,6 +117,11 @@ class BondGraph:
                 for a1 in self.atoms[idx+1:]
             )
         ))
+
+
+    # ----------------------------------------------------------------------
+    def set_positions(self, coords: np.ndarray):
+        self.coords = coords
 
 
     # ----------------------------------------------------------------------

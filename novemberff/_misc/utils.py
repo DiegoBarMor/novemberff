@@ -54,4 +54,25 @@ class Utils:
         return str(ff_path)
 
 
+    # ------------------------------------------------------------------------------
+    @staticmethod
+    def row_csv(*args, sep = ','):
+        return sep.join(map(str, args))
+
+
+    # ------------------------------------------------------------------------------
+    @classmethod
+    def init_csv(cls, path_csv, *args, sep = ','):
+        if Path(path_csv).exists(): return
+        with open(path_csv, 'w') as file:
+            file.write(cls.row_csv(*args, sep = sep))
+
+
+    # ------------------------------------------------------------------------------
+    @classmethod
+    def append_to_csv(cls, path_csv, *args, sep = ','):
+        with open(path_csv, 'a') as file:
+            file.write('\n' + cls.row_csv(*args, sep = sep))
+
+
 # //////////////////////////////////////////////////////////////////////////////

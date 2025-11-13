@@ -35,9 +35,10 @@
 * improve CLI.
 * add documentation.
 * add more forcefields.
-* remove MDAnalysis dependency for PDB parsing.
-* improve `bond_graphs`'s graph data structure.
+* improve performance.
+    * remove MDAnalysis dependency for PDB parsing.
+    * improve `bond_graphs`'s graph data structure.
 * improve the residue/atom labels fixing procedures.
 * finish refactoring of parser base class and `forcefield.from_xml` (i.e. should be Parser's responsability to yield the needed data, not Forcefield).
 * allow to specify the forcefield to use in `main.py`.
-* add option for saving the molecule's topology features (bonds, angles, etc), as well as their geometry values.
+* improve the option for saving the molecule's topology features (bonds, angles, etc), as well as their geometry values. Add it to the CLI.  Add tests.
