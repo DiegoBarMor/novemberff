@@ -37,10 +37,14 @@ class EnergyCalculator:
         self._arr_lennardj_energies = np.zeros(self._nnonbonded)
         self._arr_coulomb_energies  = np.zeros(self._nnonbonded)
 
-        self._computed_bonds: bool = False
-        self._computed_angles: bool = False
-        self._computed_diheds: bool = False
-        self._computed_nonbonded: bool = False
+        self._do_bonds     : bool = True
+        self._do_angles    : bool = True
+        self._do_diheds    : bool = True
+        self._do_nonbonded : bool = True
+        self._computed_bonds     : bool = False
+        self._computed_angles    : bool = False
+        self._computed_diheds    : bool = False
+        self._computed_nonbonded : bool = False
 
 
     # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ CONSTRUCTORS
@@ -66,35 +70,19 @@ class EnergyCalculator:
 
     # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ MAIN PUBLIC METHODS
     # --------------------------------------------------------------------------
-    def calc_energies(self, bonds = True, angles = True, diheds = True, nonbonded = True):
-        if bonds:     self._calc_ebonded()
-        if angles:    self._calc_eangles()
-        if diheds:    self._calc_ediheds()
-        if nonbonded: self._calc_nonbonded()
+    def toggle_interactions(self, bonds = True, angles = True, diheds = True, nonbonded = True):
+        self._do_bonds     = bonds
+        self._do_angles    = angles
+        self._do_diheds    = diheds
+        self._do_nonbonded = nonbonded
 
 
     # --------------------------------------------------------------------------
-    def iter_calc_energies_traj(self, bonds = True, angles = True, diheds = True, nonbonded = True):
-        if self._traj is None:
-            raise ValueError("No trajectory loaded. Cannot calculate energies over trajectory.")
-
-        for i,_ in enumerate(self._traj.trajectory):
-            self.set_positions(self._traj.atoms.positions)
-            self.calc_energies(bonds, angles, diheds, nonbonded)
-            yield (
-                i,
-                self.get_array_ebond(suppress_warning = True),
-                self.get_array_eangle(suppress_warning = True),
-                self.get_array_edihed(suppress_warning = True),
-                self.get_array_enonbonded(suppress_warning = True),
-            )
-
-
-    # --------------------------------------------------------------------------
-    def load_traj(self, path_xtc: Path):
-        self._path_xtc = path_xtc
-        self._traj = mda.Universe(str(self._path_pdb), str(path_xtc))
-
+    def calc_energies(self):
+        if self._do_bonds:     self._calc_ebonded()
+        if self._do_angles:    self._calc_eangles()
+        if self._do_diheds:    self._calc_ediheds()
+        if self._do_nonbonded: self._calc_nonbonded()
 
     # --------------------------------------------------------------------------
     def has_run(self) -> bool:
@@ -104,6 +92,27 @@ class EnergyCalculator:
         )
 
 
+    # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ TRAJECTORY METHODS
+    # --------------------------------------------------------------------------
+    def load_traj(self, path_xtc: Path):
+        self._path_xtc = path_xtc
+        self._traj = mda.Universe(str(self._path_pdb), str(path_xtc))
+
+    # --------------------------------------------------------------------------
+    def iter_calc_energies_traj(self):
+        self._assert_traj_loaded()
+        for i,_ in enumerate(self._traj.trajectory):
+            self.set_positions(self._traj.atoms.positions)
+            self.calc_energies()
+            yield (
+                i,
+                self.get_array_ebond() if self._do_bonds else None,
+                self.get_array_eangle() if self._do_angles else None,
+                self.get_array_edihed() if self._do_diheds else None,
+                self.get_array_enonbonded() if self._do_nonbonded else None,
+            )
+
+
     # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ GETTERS / SETTERS
     # --------------------------------------------------------------------------
     def get_nframes(self) -> int:
@@ -111,53 +120,60 @@ class EnergyCalculator:
         return len(self._traj.trajectory)
 
     # --------------------------------------------------------------------------
-    def get_array_ebond(self, suppress_warning: bool = False):
-        if not (self._computed_bonds or suppress_warning):
+    def get_natoms(self)     -> int: return self._natoms
+    def get_nbonds(self)     -> int: return self._nbonds
+    def get_nangles(self)    -> int: return self._nangles
+    def get_npropers(self)   -> int: return self._npropers
+    def get_nimpropers(self) -> int: return self._nimpropers
+    def get_nnonbonded(self) -> int: return self._nnonbonded
+    def get_ndiheds(self)    -> int: return self._npropers + self._nimpropers
+
+    # --------------------------------------------------------------------------
+    def get_array_ebond(self):
+        if not (self._computed_bonds):
             warnings.warn("Bond energies have not been computed yet. Returning zeroed array.")
         return self._arr_bond_energies
 
     # --------------------------------------------------------------------------
-    def get_array_eangle(self, suppress_warning: bool = False):
-        if not (self._computed_angles or suppress_warning):
+    def get_array_eangle(self):
+        if not (self._computed_angles):
             warnings.warn("Angle energies have not been computed yet. Returning zeroed array.")
         return self._arr_angle_energies
 
     # --------------------------------------------------------------------------
-    def get_array_eproper(self, suppress_warning: bool = False):
-        if not (self._computed_diheds or suppress_warning):
+    def get_array_eproper(self):
+        if not (self._computed_diheds):
             warnings.warn("Proper dihedral energies have not been computed yet. Returning zeroed array.")
         return self._arr_proper_energies
 
     # --------------------------------------------------------------------------
-    def get_array_eimproper(self, suppress_warning: bool = False):
-        if not (self._computed_diheds or suppress_warning):
+    def get_array_eimproper(self):
+        if not (self._computed_diheds):
             warnings.warn("Improper dihedral energies have not been computed yet. Returning zeroed array.")
         return self._arr_improper_energies
 
     # --------------------------------------------------------------------------
-    def get_array_elennardj(self, suppress_warning: bool = False):
-        if not (self._computed_nonbonded or suppress_warning):
+    def get_array_elennardj(self):
+        if not (self._computed_nonbonded):
             warnings.warn("Lennard-Jones energies have not been computed yet. Returning zeroed array.")
         return self._arr_lennardj_energies
 
     # --------------------------------------------------------------------------
-    def get_array_ecoulomb(self, suppress_warning: bool = False):
-        if not (self._computed_nonbonded or suppress_warning):
+    def get_array_ecoulomb(self):
+        if not (self._computed_nonbonded):
             warnings.warn("Coulomb energies have not been computed yet. Returning zeroed array.")
         return self._arr_coulomb_energies
 
     # --------------------------------------------------------------------------
-    def get_array_edihed(self, suppress_warning: bool = False):
+    def get_array_edihed(self):
         return np.concat((
-            self.get_array_eproper(suppress_warning),
-            self.get_array_eimproper(suppress_warning),
+            self.get_array_eproper(), self.get_array_eimproper(),
         ))
 
     # --------------------------------------------------------------------------
-    def get_array_enonbonded(self, suppress_warning: bool = False):
+    def get_array_enonbonded(self):
         return np.concat((
-            self.get_array_elennardj(suppress_warning),
-            self.get_array_ecoulomb(suppress_warning),
+            self.get_array_elennardj(), self.get_array_ecoulomb(),
         ))
 
 
@@ -207,10 +223,7 @@ class EnergyCalculator:
 
 
     # --------------------------------------------------------------------------
-    def save_metadata_csv(self,
-        path_csv: str | Path,
-        bonds = True, angles = True, diheds = True, nonbonded = True,
-    ):
+    def save_metadata_csv(self, path_csv: str | Path):
         def _idxs(atoms) -> int:
             return (a.index for a in atoms)
 
@@ -225,7 +238,7 @@ class EnergyCalculator:
         header = ["interaction", "kind", "intshort", "idxs", "names", "residxs", "resnames", "geometry"]
         nov.Utils.init_csv(path_csv, *header)
 
-        if bonds:
+        if self._do_bonds:
             for atoms in self._bgraph.bonds:
                 nov.Utils.append_to_csv(path_csv,
                     "bond", "bond", 'b',
@@ -233,7 +246,7 @@ class EnergyCalculator:
                     self._bgraph.calc_dist_2atoms(*_idxs(atoms)),
                 )
 
-        if angles:
+        if self._do_angles:
             for atoms in self._bgraph.angles:
                 nov.Utils.append_to_csv(path_csv,
                     "angle", "angle", 'a',
@@ -241,7 +254,7 @@ class EnergyCalculator:
                     self._bgraph.calc_angle_3atoms(*_idxs(atoms)),
                 )
 
-        if diheds:
+        if self._do_diheds:
             for atoms in self._bgraph.proper_diheds:
                 nov.Utils.append_to_csv(path_csv,
                     "dihed", "proper", 'p',
@@ -255,7 +268,7 @@ class EnergyCalculator:
                     self._bgraph.calc_dihed_4atoms(*_idxs(atoms)),
                 )
 
-        if nonbonded:
+        if self._do_nonbonded:
             for a0, a1, _ in self._bgraph.nonbonded_pairs:
                 atoms = (a0, a1)
                 nov.Utils.append_to_csv(path_csv,
@@ -346,6 +359,12 @@ class EnergyCalculator:
 
             self._arr_lennardj_energies[i] = energy_lj
             self._arr_coulomb_energies[i] = energy_coul
+
+
+    # --------------------------------------------------------------------------
+    def _assert_traj_loaded(self):
+        if self._traj is None:
+            raise ValueError("No trajectory loaded. Cannot iterate over frames.")
 
 
 # //////////////////////////////////////////////////////////////////////////////
