@@ -12,3 +12,6 @@
 ## [0.4.0] - 2021-11-13
 - Fixed missing `package_data` in `setup.py`.
 - Added method to `EnergyCalculator` for saving metadata into a CSV file.
+
+## [0.4.1] - 2021-11-14
+- Renamed `Forcefield.omm2ff` into `Forcefield.map_mda2ff` and made it assert that the mapped atom is known

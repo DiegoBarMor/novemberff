@@ -1,4 +1,4 @@
-These forcefields are originally provided by OpenMM from this location: https://github.com/openmm/openmm/tree/47684368dbbe4185d068be77d32a962059cfc37c/wrappers/python/openmm/app/data/amber14 . Below is OpenMM's License.
+These forcefields are originally provided by OpenMM from this location: https://github.com/openmm/openmm/tree/47684368dbbe4185d068be77d32a962059cfc37c/wrappers/python/openmm/app/data/amber14 . Some of them have being modified. Below is OpenMM's License.
 
 
 OpenMM was originally developed by Simbios, the NIH National Center for

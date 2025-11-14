@@ -132,26 +132,29 @@ class ForceField:
 
 
     # --------------------------------------------------------------------------
-    def omm2ff(self, atom) -> nov.FFAtom:
+    def map_mda2ff(self, atom) -> nov.FFAtom:
         """
-        Convert an OpenMM atom to a FF atom.
+        Maps an MDA atom to its correspondant FF atom.
         """
         ff_residue: nov.FFResidue = self._ffresidues[atom.residue.resname]
-        return ff_residue.get_atom_by_name(atom.name)
+        ff_atom: nov.FFAtom = ff_residue.get_atom_by_name(atom.name)
+        if ff_atom is None:
+            raise ValueError(f"Atom '{atom.name}' not found in residue '{atom.residue.resname} (resid: {atom.residue.resid})'")
+        return ff_atom
 
 
     # --------------------------------------------------------------------------
     def get_ffbond(self, atom0, atom1) -> nov.FFBond:
-        ff_a0 = self.omm2ff(atom0)
-        ff_a1 = self.omm2ff(atom1)
+        ff_a0 = self.map_mda2ff(atom0)
+        ff_a1 = self.map_mda2ff(atom1)
         return nov.FFBond.get_bond(ff_a0, ff_a1)
 
 
     # --------------------------------------------------------------------------
     def get_ffangle(self, atom0, atom1, atom2) -> nov.FFAngle:
-        ff_a0 = self.omm2ff(atom0)
-        ff_a1 = self.omm2ff(atom1)
-        ff_a2 = self.omm2ff(atom2)
+        ff_a0 = self.map_mda2ff(atom0)
+        ff_a1 = self.map_mda2ff(atom1)
+        ff_a2 = self.map_mda2ff(atom2)
         return nov.FFAngle.get_angle(ff_a0, ff_a1, ff_a2)
 
 
@@ -159,10 +162,10 @@ class ForceField:
     def iter_ffpropers(self, atoms):
         for ordered_atoms,mask in nov.Utils.combinations_proper_diheds(*atoms):
             a0, a1, a2, a3 = ordered_atoms
-            ff_a0 = self.omm2ff(a0)
-            ff_a1 = self.omm2ff(a1)
-            ff_a2 = self.omm2ff(a2)
-            ff_a3 = self.omm2ff(a3)
+            ff_a0 = self.map_mda2ff(a0)
+            ff_a1 = self.map_mda2ff(a1)
+            ff_a2 = self.map_mda2ff(a2)
+            ff_a3 = self.map_mda2ff(a3)
             dihed = nov.FFDihedral.get_dihed(ff_a0, ff_a1, ff_a2, ff_a3, mask)
             if dihed is not None:
                 ordered_idxs = (a0.index, a1.index, a2.index, a3.index)
@@ -178,10 +181,10 @@ class ForceField:
 
         for ordered_atoms,mask in nov.Utils.combinations_improper_diheds(*atoms):
             a0, a1, a2, a3 = ordered_atoms
-            ff_a0 = self.omm2ff(a1) # swap between 0 and 1 is intentional (see explanation above)
-            ff_a1 = self.omm2ff(a0)
-            ff_a2 = self.omm2ff(a2)
-            ff_a3 = self.omm2ff(a3)
+            ff_a0 = self.map_mda2ff(a1) # swap between 0 and 1 is intentional (see explanation above)
+            ff_a1 = self.map_mda2ff(a0)
+            ff_a2 = self.map_mda2ff(a2)
+            ff_a3 = self.map_mda2ff(a3)
             dihed = nov.FFDihedral.get_dihed(ff_a0, ff_a1, ff_a2, ff_a3, mask)
             if dihed is not None:
                 ordered_idxs = (a0.index, a1.index, a2.index, a3.index)
@@ -190,8 +193,8 @@ class ForceField:
 
     # --------------------------------------------------------------------------
     def get_ffnonbonded(self, a0, a1):
-            ff_a0 = self.omm2ff(a0)
-            ff_a1 = self.omm2ff(a1)
+            ff_a0 = self.map_mda2ff(a0)
+            ff_a1 = self.map_mda2ff(a1)
             ff_nb0 = nov.FFNonBonded.get_nonbonded(ff_a0)
             ff_nb1 = nov.FFNonBonded.get_nonbonded(ff_a1)
 
