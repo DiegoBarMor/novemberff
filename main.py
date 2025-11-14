@@ -17,14 +17,11 @@ if __name__ == "__main__":
         print("Usage: python main.py (prot|rna) <path_pdb> [<folder_output>]")
         sys.exit(1)
 
+    calc = nov.EnergyCalculator.with_prot_ff(PATH_PDB) \
+        if MODE == "prot" else \
+        nov.EnergyCalculator.with_rna_ff(PATH_PDB)
 
-    if MODE == "prot":
-        calc = nov.EnergyCalculator.with_prot_ff(PATH_PDB)
-        calc.calc_energies_prot()
-    else:
-        calc = nov.EnergyCalculator.with_rna_ff(PATH_PDB)
-        calc.calc_energies_rna()
-
+    calc.calc_energies()
 
     if len(sys.argv) >= 4:
         FOLDER_OUTPUT = sys.argv[3]

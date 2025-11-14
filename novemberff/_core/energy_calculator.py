@@ -1,3 +1,4 @@
+import warnings
 import numpy as np
 from pathlib import Path
 import MDAnalysis as mda
@@ -31,59 +32,108 @@ class EnergyCalculator:
         self._arr_lennardj_energies = np.zeros(self._nnonbonded)
         self._arr_coulomb_energies  = np.zeros(self._nnonbonded)
 
+        self._computed_bonds: bool = False
+        self._computed_angles: bool = False
+        self._computed_diheds: bool = False
+        self._computed_nonbonded: bool = False
 
+
+    # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ CONSTRUCTORS
     # --------------------------------------------------------------------------
     @classmethod
     def with_prot_ff(cls, path_pdb: Path) -> "EnergyCalculator":
-        """Initialize EnergyCalculator with a default protein force field (Amber99SB)."""
-        return cls(path_pdb, "amber99sb")
+        """Initialize EnergyCalculator with a default protein force field (Amber99SB) and applies relevant patches to the PDB."""
+        obj = cls(path_pdb, "amber99sb")
+        nov.PDBPostProcess.fix_prot_atomlabels_aliases(obj._pdb)
+        nov.PDBPostProcess.fix_prot_reslabels_aliases (obj._pdb)
+        nov.PDBPostProcess.fix_prot_reslabels_termini (obj._pdb)
+        return obj
 
 
     # --------------------------------------------------------------------------
     @classmethod
     def with_rna_ff(cls, path_pdb: Path) -> "EnergyCalculator":
-        """Initialize EnergyCalculator with a default RNA force field (RNA.OL3)."""
-        return cls(path_pdb, "rna.ol3")
+        """Initialize EnergyCalculator with a default RNA force field (RNA.OL3) and applies relevant patches to the PDB."""
+        obj = cls(path_pdb, "rna.ol3")
+        nov.PDBPostProcess.fix_rna_reslabels_termini(obj._pdb)
+        return obj
+
+
+    # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ MAIN PUBLIC METHODS
+    # --------------------------------------------------------------------------
+    def calc_energies(self,
+        bonds = True, # [WIP] improve customizable chosen energies?
+        angles = True,
+        diheds = True,
+        nonbonded = True,
+    ):
+        if bonds:     self._calc_ebonded()
+        if angles:    self._calc_eangles()
+        if diheds:    self._calc_ediheds()
+        if nonbonded: self._calc_nonbonded()
 
 
     # --------------------------------------------------------------------------
-    def calc_energies_prot(self) -> "EnergyCalculator":
-        nov.PDBPostProcess.fix_prot_atomlabels_aliases(self._pdb)
-        nov.PDBPostProcess.fix_prot_reslabels_aliases(self._pdb)
-        nov.PDBPostProcess.fix_prot_reslabels_termini(self._pdb)
-        self._calc_energies()
-        return self
+    def has_run(self) -> bool:
+        return (
+            self._computed_bonds  or self._computed_angles or
+            self._computed_diheds or self._computed_nonbonded
+        )
 
+
+    # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ GETTERS / SETTERS
+    # --------------------------------------------------------------------------
+    def get_array_ebond(self):
+        if not self._computed_bonds:
+            warnings.warn("Bond energies have not been computed yet. Returning zeroed array.")
+        return self._arr_bond_energies
 
     # --------------------------------------------------------------------------
-    def calc_energies_rna(self) -> "EnergyCalculator":
-        nov.PDBPostProcess.fix_rna_reslabels_termini(self._pdb)
-        self._calc_energies()
-        return self
-
+    def get_array_eangle(self):
+        if not self._computed_angles:
+            warnings.warn("Angle energies have not been computed yet. Returning zeroed array.")
+        return self._arr_angle_energies
 
     # --------------------------------------------------------------------------
-    def get_array_ebond(self):     return self._arr_bond_energies
-    def get_array_eangle(self):    return self._arr_angle_energies
-    def get_array_eproper(self):   return self._arr_proper_energies
-    def get_array_eimproper(self): return self._arr_improper_energies
-    def get_array_elennardj(self): return self._arr_lennardj_energies
-    def get_array_ecoulomb(self):  return self._arr_coulomb_energies
+    def get_array_eproper(self):
+        if not self._computed_diheds:
+            warnings.warn("Proper dihedral energies have not been computed yet. Returning zeroed array.")
+        return self._arr_proper_energies
 
+    # --------------------------------------------------------------------------
+    def get_array_eimproper(self):
+        if not self._computed_diheds:
+            warnings.warn("Improper dihedral energies have not been computed yet. Returning zeroed array.")
+        return self._arr_improper_energies
+
+    # --------------------------------------------------------------------------
+    def get_array_elennardj(self):
+        if not self._computed_nonbonded:
+            warnings.warn("Lennard-Jones energies have not been computed yet. Returning zeroed array.")
+        return self._arr_lennardj_energies
+
+    # --------------------------------------------------------------------------
+    def get_array_ecoulomb(self):
+        if not self._computed_nonbonded:
+            warnings.warn("Coulomb energies have not been computed yet. Returning zeroed array.")
+        return self._arr_coulomb_energies
+
+    # --------------------------------------------------------------------------
     def get_array_edihed(self):
         return np.concat((self.get_array_eproper(), self.get_array_eimproper()))
 
+    # --------------------------------------------------------------------------
     def get_array_enonbonded(self):
         return np.concat((self.get_array_elennardj(), self.get_array_ecoulomb()))
 
 
     # --------------------------------------------------------------------------
-    def get_sum_ebond(self):     return np.sum(self._arr_bond_energies)
-    def get_sum_eangle(self):    return np.sum(self._arr_angle_energies)
-    def get_sum_eproper(self):   return np.sum(self._arr_proper_energies)
-    def get_sum_eimproper(self): return np.sum(self._arr_improper_energies)
-    def get_sum_elennardj(self): return np.sum(self._arr_lennardj_energies)
-    def get_sum_ecoulomb(self):  return np.sum(self._arr_coulomb_energies)
+    def get_sum_ebond(self):     return np.sum(self.get_array_ebond())
+    def get_sum_eangle(self):    return np.sum(self.get_array_eangle())
+    def get_sum_eproper(self):   return np.sum(self.get_array_eproper())
+    def get_sum_eimproper(self): return np.sum(self.get_array_eimproper())
+    def get_sum_elennardj(self): return np.sum(self.get_array_elennardj())
+    def get_sum_ecoulomb(self):  return np.sum(self.get_array_ecoulomb())
 
     def get_sum_edihed(self):
         return self.get_sum_eproper() + self.get_sum_eimproper()
@@ -98,6 +148,7 @@ class EnergyCalculator:
         self._bgraph.set_positions(positions)
 
 
+    # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ OUTPUT OPERATIONS
     # --------------------------------------------------------------------------
     def display_energies(self):
         print(f">>> Amber energies (NovemberFF) for '{self._path_pdb}':")
@@ -124,7 +175,7 @@ class EnergyCalculator:
     # --------------------------------------------------------------------------
     def save_metadata_csv(self,
         path_csv: str | Path,
-        bonds = True, # [WIP] improve customizable metadata export
+        bonds = True, # [WIP] improve customizable metadata export?
         angles = True,
         diheds = True,
         nonbonded = True,
@@ -182,17 +233,12 @@ class EnergyCalculator:
                     self._bgraph.calc_dist_2atoms(*_idxs(atoms)),
                 )
 
-    # --------------------------------------------------------------------------
-    def _calc_energies(self):
-        ##### novemberff_e = (1 ± ε) * openmm_e
-        self._calc_ebonded()   # ε = 1e-14
-        self._calc_eangles()   # ε = 1e-15
-        self._calc_ediheds()   # ε = 1e-4
-        self._calc_nonbonded() # ε = 1e-6
 
-
+    # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ PRIVATE METHODS
     # --------------------------------------------------------------------------
     def _calc_ebonded(self):
+        self._computed_bonds = True
+
         ###### [ORIGINAL SOURCE] platforms/reference/src/SimTKReference/ReferenceHarmonicBondlxn.cpp@111
         for i,(a0,a1) in enumerate(self._bgraph.bonds):
             if (a0.element == 'H') or (a1.element == 'H'): # apply HBond constraints
@@ -206,6 +252,8 @@ class EnergyCalculator:
 
     # --------------------------------------------------------------------------
     def _calc_eangles(self):
+        self._computed_angles = True
+
         for i,(a0,a1,a2) in enumerate(self._bgraph.angles):
             ff_angle = self._forcefield.get_ffangle(a0, a1, a2)
             angle  = self._bgraph.calc_angle_3atoms(a0.index, a1.index, a2.index)
@@ -215,6 +263,8 @@ class EnergyCalculator:
 
     # --------------------------------------------------------------------------
     def _calc_ediheds(self):
+        self._computed_diheds = True
+
         def _edihed_contributions(ff_dihed: nov.FFDihedral, ordered_atoms, is_proper):
             a0,a1,a2,a3 = ordered_atoms
             angle = self._bgraph.calc_dihed_4atoms(a0, a1, a2, a3)
@@ -241,6 +291,8 @@ class EnergyCalculator:
 
     # --------------------------------------------------------------------------
     def _calc_nonbonded(self):
+        self._computed_nonbonded = True
+
         ### [ORIGINAL SOURCE] platforms/cpu/src/CpuKernels.cpp@CpuCalcNonbondedForceKernel::computeParameters
         ### [ORIGINAL SOURCE] platforms/cpu/include/CpuNonbondedForceFvec.h@CpuNonbondedForceFvec::calculateBlockIxnImpl
         ### [ORIGINAL SOURCE] openmmapi/src/NonbondedForce.cpp@NonbondedForce::createExceptionsFromBonds
