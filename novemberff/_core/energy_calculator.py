@@ -7,16 +7,21 @@ import novemberff as nov
 
 # //////////////////////////////////////////////////////////////////////////////
 class EnergyCalculator:
-    def __init__(self, path_pdb: Path, forcefield: str | Path):
+    def __init__(self, path_pdb: Path, forcefield: str | Path, path_xtc: Path | None = None):
         self._path_pdb = path_pdb
+        self._path_xml = nov.Utils.solve_forcefield_path(forcefield)
+        self._path_xtc = None
 
         self._pdb = mda.Universe(str(path_pdb), to_guess = ["elements", "bonds"])
         self._bgraph = nov.BondGraph(
             self._pdb.atoms, self._pdb.bonds,
             coords = self._pdb.atoms.positions
         )
-        path_xml = nov.Utils.solve_forcefield_path(forcefield)
-        self._forcefield = nov.ForceField.from_xml(path_xml)
+        self._forcefield = nov.ForceField.from_xml(self._path_xml)
+        self._traj = None
+
+        if path_xtc is not None:
+            self.load_traj(path_xtc)
 
         self._natoms     = len(self._bgraph.atoms)
         self._nbonds     = len(self._bgraph.bonds)
@@ -41,9 +46,9 @@ class EnergyCalculator:
     # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ CONSTRUCTORS
     # --------------------------------------------------------------------------
     @classmethod
-    def with_prot_ff(cls, path_pdb: Path) -> "EnergyCalculator":
+    def with_prot_ff(cls, path_pdb: Path, path_xtc: Path | None = None) -> "EnergyCalculator":
         """Initialize EnergyCalculator with a default protein force field (Amber99SB) and applies relevant patches to the PDB."""
-        obj = cls(path_pdb, "amber99sb")
+        obj = cls(path_pdb, "amber99sb", path_xtc)
         nov.PDBPostProcess.fix_prot_atomlabels_aliases(obj._pdb)
         nov.PDBPostProcess.fix_prot_reslabels_aliases (obj._pdb)
         nov.PDBPostProcess.fix_prot_reslabels_termini (obj._pdb)
@@ -52,25 +57,43 @@ class EnergyCalculator:
 
     # --------------------------------------------------------------------------
     @classmethod
-    def with_rna_ff(cls, path_pdb: Path) -> "EnergyCalculator":
+    def with_rna_ff(cls, path_pdb: Path, path_xtc: Path | None = None) -> "EnergyCalculator":
         """Initialize EnergyCalculator with a default RNA force field (RNA.OL3) and applies relevant patches to the PDB."""
-        obj = cls(path_pdb, "rna.ol3")
+        obj = cls(path_pdb, "rna.ol3", path_xtc)
         nov.PDBPostProcess.fix_rna_reslabels_termini(obj._pdb)
         return obj
 
 
     # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ MAIN PUBLIC METHODS
     # --------------------------------------------------------------------------
-    def calc_energies(self,
-        bonds = True, # [WIP] improve customizable chosen energies?
-        angles = True,
-        diheds = True,
-        nonbonded = True,
-    ):
+    def calc_energies(self, bonds = True, angles = True, diheds = True, nonbonded = True):
         if bonds:     self._calc_ebonded()
         if angles:    self._calc_eangles()
         if diheds:    self._calc_ediheds()
         if nonbonded: self._calc_nonbonded()
+
+
+    # --------------------------------------------------------------------------
+    def iter_calc_energies_traj(self, bonds = True, angles = True, diheds = True, nonbonded = True):
+        if self._traj is None:
+            raise ValueError("No trajectory loaded. Cannot calculate energies over trajectory.")
+
+        for i,_ in enumerate(self._traj.trajectory):
+            self.set_positions(self._traj.atoms.positions)
+            self.calc_energies(bonds, angles, diheds, nonbonded)
+            yield (
+                i,
+                self.get_array_ebond(suppress_warning = True),
+                self.get_array_eangle(suppress_warning = True),
+                self.get_array_edihed(suppress_warning = True),
+                self.get_array_enonbonded(suppress_warning = True),
+            )
+
+
+    # --------------------------------------------------------------------------
+    def load_traj(self, path_xtc: Path):
+        self._path_xtc = path_xtc
+        self._traj = mda.Universe(str(self._path_pdb), str(path_xtc))
 
 
     # --------------------------------------------------------------------------
@@ -83,48 +106,59 @@ class EnergyCalculator:
 
     # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ GETTERS / SETTERS
     # --------------------------------------------------------------------------
-    def get_array_ebond(self):
-        if not self._computed_bonds:
+    def get_nframes(self) -> int:
+        if self._traj is None: return 1
+        return len(self._traj.trajectory)
+
+    # --------------------------------------------------------------------------
+    def get_array_ebond(self, suppress_warning: bool = False):
+        if not (self._computed_bonds or suppress_warning):
             warnings.warn("Bond energies have not been computed yet. Returning zeroed array.")
         return self._arr_bond_energies
 
     # --------------------------------------------------------------------------
-    def get_array_eangle(self):
-        if not self._computed_angles:
+    def get_array_eangle(self, suppress_warning: bool = False):
+        if not (self._computed_angles or suppress_warning):
             warnings.warn("Angle energies have not been computed yet. Returning zeroed array.")
         return self._arr_angle_energies
 
     # --------------------------------------------------------------------------
-    def get_array_eproper(self):
-        if not self._computed_diheds:
+    def get_array_eproper(self, suppress_warning: bool = False):
+        if not (self._computed_diheds or suppress_warning):
             warnings.warn("Proper dihedral energies have not been computed yet. Returning zeroed array.")
         return self._arr_proper_energies
 
     # --------------------------------------------------------------------------
-    def get_array_eimproper(self):
-        if not self._computed_diheds:
+    def get_array_eimproper(self, suppress_warning: bool = False):
+        if not (self._computed_diheds or suppress_warning):
             warnings.warn("Improper dihedral energies have not been computed yet. Returning zeroed array.")
         return self._arr_improper_energies
 
     # --------------------------------------------------------------------------
-    def get_array_elennardj(self):
-        if not self._computed_nonbonded:
+    def get_array_elennardj(self, suppress_warning: bool = False):
+        if not (self._computed_nonbonded or suppress_warning):
             warnings.warn("Lennard-Jones energies have not been computed yet. Returning zeroed array.")
         return self._arr_lennardj_energies
 
     # --------------------------------------------------------------------------
-    def get_array_ecoulomb(self):
-        if not self._computed_nonbonded:
+    def get_array_ecoulomb(self, suppress_warning: bool = False):
+        if not (self._computed_nonbonded or suppress_warning):
             warnings.warn("Coulomb energies have not been computed yet. Returning zeroed array.")
         return self._arr_coulomb_energies
 
     # --------------------------------------------------------------------------
-    def get_array_edihed(self):
-        return np.concat((self.get_array_eproper(), self.get_array_eimproper()))
+    def get_array_edihed(self, suppress_warning: bool = False):
+        return np.concat((
+            self.get_array_eproper(suppress_warning),
+            self.get_array_eimproper(suppress_warning),
+        ))
 
     # --------------------------------------------------------------------------
-    def get_array_enonbonded(self):
-        return np.concat((self.get_array_elennardj(), self.get_array_ecoulomb()))
+    def get_array_enonbonded(self, suppress_warning: bool = False):
+        return np.concat((
+            self.get_array_elennardj(suppress_warning),
+            self.get_array_ecoulomb(suppress_warning),
+        ))
 
 
     # --------------------------------------------------------------------------
@@ -175,10 +209,7 @@ class EnergyCalculator:
     # --------------------------------------------------------------------------
     def save_metadata_csv(self,
         path_csv: str | Path,
-        bonds = True, # [WIP] improve customizable metadata export?
-        angles = True,
-        diheds = True,
-        nonbonded = True,
+        bonds = True, angles = True, diheds = True, nonbonded = True,
     ):
         def _idxs(atoms) -> int:
             return (a.index for a in atoms)

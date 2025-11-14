@@ -17,3 +17,4 @@
 - Renamed `Forcefield.omm2ff` into `Forcefield.map_mda2ff` and made it assert that the mapped atom is known
 - PDB adjustments are now done at the `EnergyCalculator.with_prot_ff` and `EnergyCalculator.with_rna_ff` constructors instead of doing it when calculating the energies.
 - A single `EnergyCalculator.calc_energies` method is now used instead.
+- Added possibility of loading a trajectory for iterating over its frames' energies. Depends on MDAnalysis for now.
