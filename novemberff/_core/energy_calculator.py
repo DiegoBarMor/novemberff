@@ -99,18 +99,39 @@ class EnergyCalculator:
         self._traj = mda.Universe(str(self._path_pdb), str(path_xtc))
 
     # --------------------------------------------------------------------------
-    def iter_calc_energies_traj(self):
+    def itercalc_traj_energies(self):
         self._assert_traj_loaded()
         for i,_ in enumerate(self._traj.trajectory):
             self.set_positions(self._traj.atoms.positions)
             self.calc_energies()
             yield (
                 i,
-                self.get_array_ebond() if self._do_bonds else None,
-                self.get_array_eangle() if self._do_angles else None,
-                self.get_array_edihed() if self._do_diheds else None,
+                self.get_array_ebond()      if self._do_bonds     else None,
+                self.get_array_eangle()     if self._do_angles    else None,
+                self.get_array_edihed()     if self._do_diheds    else None,
                 self.get_array_enonbonded() if self._do_nonbonded else None,
             )
+
+    # --------------------------------------------------------------------------
+    def get_traj_energy_arrays(self, verbose = False) -> tuple[np.ndarray[float, float] | None]:
+        self._assert_traj_loaded()
+
+        nframes = self.get_nframes()
+        mat_ebond  = np.zeros((nframes, self.get_nbonds()))     if self._do_bonds     else None
+        mat_eangle = np.zeros((nframes, self.get_nangles()))    if self._do_angles    else None
+        mat_edihed = np.zeros((nframes, self.get_ndiheds()))    if self._do_diheds    else None
+        mat_ennb   = np.zeros((nframes, self.get_nnonbonded())) if self._do_nonbonded else None
+
+        for i,_ in enumerate(self._traj.trajectory):
+            if verbose and not (i % 100): print(f"Progress: {i}/{nframes}")
+            self.set_positions(self._traj.atoms.positions)
+            self.calc_energies()
+            if self._do_bonds:     mat_ebond [i,:] = self.get_array_ebond()
+            if self._do_angles:    mat_eangle[i,:] = self.get_array_eangle()
+            if self._do_diheds:    mat_edihed[i,:] = self.get_array_edihed()
+            if self._do_nonbonded: mat_ennb  [i,:] = self.get_array_enonbonded()
+
+        return mat_ebond, mat_eangle, mat_edihed, mat_ennb
 
 
     # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ GETTERS / SETTERS
