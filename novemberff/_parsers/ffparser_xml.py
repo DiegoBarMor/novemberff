@@ -58,7 +58,10 @@ class FFParserXML(nov.ForceFieldParser):
         node = self.root
         parent_chain = []
         for line in self._xml_content.splitlines():
-            tag_name, attributes, tag_content, ended = self.parse_xml_line(line)
+            parsed_line = self.parse_xml_line(line)
+
+            if parsed_line is None: continue
+            tag_name, attributes, tag_content, ended = parsed_line
 
             ### CASE 0: end-tag only
             if not tag_name:
@@ -95,7 +98,9 @@ class FFParserXML(nov.ForceFieldParser):
                 continue
 
             if state == State.TAG_NAME:
-                if c == ">":
+                if c == "?":
+                    return # ignore XML declaration for now
+                elif c == ">":
                     state = State.TAG_CONTENT
                 elif c == " ":
                     state = State.ATTRIBUTE_KEY

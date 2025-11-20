@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="novemberff",
-    version="0.5.0",
+    version="0.6.1",
     description="Custom implementation of the AMBER forcefield, focused on simplicity and verbose outputs.",
     keywords="Amber Forcefield MolecularDynamics MD Simulation",
     long_description=open("README.md").read(),
