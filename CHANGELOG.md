@@ -28,3 +28,4 @@
 ## [0.6.1]
 - XML parser now ignores the XML declaration at the beginning of the file.
 - added a new default forcefield: `amber99sb-ucb.xml`.
+- more descriptive errors are now obtained when an interaction is unknown.

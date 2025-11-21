@@ -147,7 +147,10 @@ class ForceField:
     def get_ffbond(self, atom0, atom1) -> nov.FFBond:
         ff_a0 = self.map_mda2ff(atom0)
         ff_a1 = self.map_mda2ff(atom1)
-        return nov.FFBond.get_bond(ff_a0, ff_a1)
+        try:
+            return nov.FFBond.get_bond(ff_a0, ff_a1)
+        except KeyError as e:
+            self._err_unkwnown_interaction(e, atom0, atom1)
 
 
     # --------------------------------------------------------------------------
@@ -155,7 +158,10 @@ class ForceField:
         ff_a0 = self.map_mda2ff(atom0)
         ff_a1 = self.map_mda2ff(atom1)
         ff_a2 = self.map_mda2ff(atom2)
-        return nov.FFAngle.get_angle(ff_a0, ff_a1, ff_a2)
+        try:
+            return nov.FFAngle.get_angle(ff_a0, ff_a1, ff_a2)
+        except KeyError as e:
+            self._err_unkwnown_interaction(e, atom0, atom1, atom2)
 
 
     # --------------------------------------------------------------------------
@@ -195,14 +201,30 @@ class ForceField:
     def get_ffnonbonded(self, a0, a1):
             ff_a0 = self.map_mda2ff(a0)
             ff_a1 = self.map_mda2ff(a1)
-            ff_nb0 = nov.FFNonBonded.get_nonbonded(ff_a0)
-            ff_nb1 = nov.FFNonBonded.get_nonbonded(ff_a1)
+            try:
+                ff_nb0 = nov.FFNonBonded.get_nonbonded(ff_a0)
+                ff_nb1 = nov.FFNonBonded.get_nonbonded(ff_a1)
+            except KeyError as e:
+                self._err_unkwnown_interaction(e, a0, a1)
 
             ### charges are sometimes stored in the Residue.Atom XML-nodes (e.g. in RNA.OL3.xml)
             ### other times, they are stored in the Nonbonded XML-nodes (e.g. in amber99sb.xml)
             charge0 = ff_a0.charge if ff_nb0.charge is None else ff_nb0.charge
             charge1 = ff_a1.charge if ff_nb1.charge is None else ff_nb1.charge
             return ff_nb0, ff_nb1, charge0, charge1
+
+
+    # --------------------------------------------------------------------------
+    @staticmethod
+    def _err_unkwnown_interaction(exception, *atoms):
+        names    = (atom.name for atom in atoms)
+        indices  = (str(atom.index) for atom in atoms)
+        resnames = (atom.residue.resname for atom in atoms)
+        resids   = (str(atom.residue.resid) for atom in atoms)
+        raise KeyError(
+            f"Unknown interaction between atoms '{'-'.join(names)}' (index: {'-'.join(indices)}) " +
+            f"in residues '{'-'.join(resnames)}' (resid: {'-'.join(resids)})'"
+        ) from exception
 
 
 # //////////////////////////////////////////////////////////////////////////////
